@@ -1,65 +1,59 @@
-import Image from "next/image";
+import Link from 'next/link'
 
-export default function Home() {
+import { ArrowRight } from 'lucide-react'
+
+import { PostCard } from '@/components/blog/post-card'
+import { Button } from '@/components/ui/button'
+
+import { getAllPosts } from '@/lib/mdx'
+
+export default async function Home() {
+  const allPosts = await getAllPosts()
+  const recentPosts = allPosts.slice(0, 6) // Show 6 most recent posts
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="container py-10">
+      {/* Hero Section */}
+      <section className="mb-16 text-center">
+        <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
+          欢迎来到 NingBlog
+        </h1>
+        <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
+          一个专注于 Web 开发、JavaScript 和现代框架的技术博客
+        </p>
+      </section>
+
+      {/* Recent Posts */}
+      <section>
+        <div className="mb-8 flex items-center justify-between">
+          <h2 className="text-3xl font-bold">最新文章</h2>
+          {allPosts.length > 6 && (
+            <Link href="/blog">
+              <Button variant="ghost">
+                查看全部
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+        {recentPosts.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {recentPosts.map((post) => (
+              <PostCard key={post.slug} post={post} />
+            ))}
+          </div>
+        ) : (
+          <div className="flex h-[400px] items-center justify-center rounded-lg border border-dashed">
+            <div className="text-center">
+              <p className="text-muted-foreground text-lg">暂无文章</p>
+              <p className="text-muted-foreground mt-2 text-sm">
+                在 content/posts 目录下创建 .mdx 文件开始写作
+              </p>
+            </div>
+          </div>
+        )}
+      </section>
     </div>
-  );
+  )
 }

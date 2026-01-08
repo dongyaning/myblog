@@ -1,0 +1,143 @@
+---
+title: 欢迎来到 NingBlog
+date: 2026-01-08
+updated: 2026-01-08
+description: 这是一篇介绍 NingBlog 功能特性的文章，展示了博客系统的各种能力。
+published: true
+category: 前端开发
+tags: [Next.js, React, TypeScript, Tailwind CSS]
+---
+
+# 欢迎来到 NingBlog
+
+这是一个基于 Next.js 16、TypeScript 和 Tailwind CSS 构建的现代化技术博客平台。
+
+## 核心特性
+
+### 1. 内容管理
+
+NingBlog 采用 "Docs as Code" 理念，所有文章都使用 MDX 格式编写：
+
+- **MDX 支持**：可以在 Markdown 中直接使用 React 组件
+- **分类与标签**：灵活的内容组织方式
+- **自动目录**：长文章自动生成导航目录
+- **阅读时间**：自动计算预计阅读时间
+
+### 2. 设计理念
+
+博客采用极简主义设计，专注于内容本身：
+
+```typescript
+// 示例代码：配置文件
+export const siteConfig = {
+  name: 'NingBlog',
+  description: 'A personal technical blog',
+  url: 'https://ningblog.com',
+}
+```
+
+### 3. 技术栈
+
+核心技术选型包括：
+
+- **框架**：Next.js 16 (App Router)
+- **语言**：TypeScript
+- **样式**：Tailwind CSS 4
+- **组件**：shadcn/ui (基于 Radix UI)
+- **图标**：Lucide React
+- **主题**：next-themes (支持深色模式)
+
+## 功能展示
+
+### 代码高亮
+
+支持多种编程语言的语法高亮，并且带有复制按钮：
+
+```javascript
+function greet(name) {
+  console.log(`Hello, ${name}!`)
+}
+
+greet('World')
+```
+
+```python
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n-1) + fibonacci(n-2)
+
+print(fibonacci(10))
+```
+
+### 交互组件
+
+可以在文章中直接使用 React 组件：
+
+<Button variant="default">点击测试</Button>
+
+### 列表和引用
+
+支持标准的 Markdown 语法：
+
+- 列表项 1
+- 列表项 2
+  - 嵌套列表 2.1
+  - 嵌套列表 2.2
+- 列表项 3
+
+> 这是一段引用文字。
+> 引用可以跨多行显示。
+
+### 表格
+
+| 特性       | 状态 | 说明          |
+| ---------- | ---- | ------------- |
+| 响应式设计 | ✅   | 移动端友好    |
+| 深色模式   | ✅   | 自动切换      |
+| SEO 优化   | ✅   | Sitemap & RSS |
+| 性能优化   | ✅   | 静态生成      |
+
+## SEO 优化
+
+NingBlog 实现了全面的 SEO 优化：
+
+1. **元数据管理**：动态生成页面标题和描述
+2. **Open Graph**：支持社交媒体分享预览
+3. **结构化数据**：JSON-LD 格式的文章信息
+4. **站点地图**：自动生成 sitemap.xml
+5. **RSS Feed**：支持 RSS 订阅
+
+## 性能优化
+
+博客采用了多项性能优化措施：
+
+- **静态生成**：所有文章页面在构建时预渲染
+- **图片优化**：使用 Next.js Image 组件
+- **代码分割**：客户端组件按需加载
+- **响应式图片**：根据设备自动调整大小
+
+## 开始使用
+
+创建新文章非常简单，只需在 `content/posts` 目录下新建 `.mdx` 文件：
+
+```markdown
+---
+title: 文章标题
+date: 2026-01-08
+description: 文章描述
+published: true
+category: 分类名称
+tags: [标签1, 标签2]
+---
+
+# 文章内容
+
+这里是正文...
+```
+
+## 总结
+
+NingBlog 是一个功能完整、性能优秀的技术博客平台。它专注于提供最佳的内容阅读和写作体验。
+
+欢迎使用 NingBlog 开始你的技术写作之旅！
