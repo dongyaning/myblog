@@ -2,6 +2,7 @@ import { compileMDX } from 'next-mdx-remote/rsc'
 
 import fs from 'fs'
 import path from 'path'
+import remarkGfm from 'remark-gfm'
 
 // Extended Frontmatter with category, tags, and updated fields
 export interface Frontmatter {
@@ -31,7 +32,12 @@ export async function getPostBySlug(slug: string, components: any = {}): Promise
 
   const { content, frontmatter } = await compileMDX<Frontmatter>({
     source: fileContent,
-    options: { parseFrontmatter: true },
+    options: {
+      parseFrontmatter: true,
+      mdxOptions: {
+        remarkPlugins: [remarkGfm],
+      },
+    },
     components: components,
   })
 

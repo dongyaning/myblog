@@ -10,7 +10,7 @@ import { PostMeta } from '@/components/blog/post-meta'
 import { TableOfContents } from '@/components/blog/table-of-contents'
 import { mdxComponents } from '@/components/mdx-components'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { getAllPosts, getPostBySlug, getRelatedPosts } from '@/lib/mdx'
 import { calculateReadingTime } from '@/lib/reading-time'
@@ -33,10 +33,10 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: PageProps) {
   try {
     const { slug } = await params
-    const { meta } = await getPostBySlug(slug, mdxComponents)
+    const { meta } = await getPostBySlug(slug)
 
     return {
-      title: `${meta.title} - NingBlog`,
+      title: `${meta.title}`,
       description: meta.description || meta.title,
       keywords: meta.tags?.join(', '),
       authors: [{ name: 'Ning' }],

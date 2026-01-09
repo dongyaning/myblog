@@ -16,13 +16,13 @@ export async function HighlightedCode({ code, language, title }: HighlightedCode
       lang: language,
       themes: {
         light: 'github-light',
-        dark: 'github-dark',
+        dark: 'dracula',
       },
     })
   } catch (error) {
     console.error('Shiki highlighting error:', error)
     // Fallback to plain code with basic styling
-    highlightedHtml = `<pre class="shiki github-light github-dark" style="background-color: #24292e; color: #e1e4e8; padding: 1rem; border-radius: 0.5rem; overflow-x: auto;"><code>${escapeHtml(code)}</code></pre>`
+    highlightedHtml = `<pre class="shiki github-light dracula" style="background-color: #282a36; color: #f8f8f2; padding: 1rem; border-radius: 0.5rem; overflow-x: auto;"><code>${escapeHtml(code)}</code></pre>`
   }
 
   return <CodeBlockWrapper code={code} highlightedHtml={highlightedHtml} title={title} />

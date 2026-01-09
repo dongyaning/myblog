@@ -44,7 +44,7 @@ export default async function Home() {
             ))}
           </div>
         ) : (
-          <div className="flex h-[400px] items-center justify-center rounded-lg border border-dashed">
+          <div className="flex h-100 items-center justify-center rounded-lg border border-dashed">
             <div className="text-center">
               <p className="text-muted-foreground text-lg">暂无文章</p>
               <p className="text-muted-foreground mt-2 text-sm">

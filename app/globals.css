@@ -94,7 +94,7 @@
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: oklch(70.9% 0.00008 271.152);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -183,8 +183,7 @@
 }
 
 /* Light/Dark theme support for Shiki */
-.shiki-wrapper .shiki.github-dark,
-.shiki-wrapper .shiki.github-light {
+.shiki-wrapper .shiki {
   background-color: transparent !important;
 }
 
@@ -194,12 +193,12 @@
 }
 
 /* Hide dark theme in light mode */
-:not(.dark) .shiki-wrapper .shiki.github-dark {
+:not(.dark) .shiki-wrapper .shiki.dracula {
   display: none;
 }
 
 /* Show appropriate theme */
-.dark .shiki-wrapper .shiki.github-dark {
+.dark .shiki-wrapper .shiki.dracula {
   display: block;
 }
 
@@ -207,13 +206,68 @@
   display: block;
 }
 
-/* Ensure code blocks have proper background */
+/* Ensure code blocks have proper background and high contrast */
 .prose .shiki-wrapper pre.shiki {
-  background-color: #f6f8fa;
+  background-color: #f6f8fa !important;
   border: 1px solid #e1e4e8;
+  padding: 1rem;
+  border-radius: 0.5rem;
 }
 
 .dark .prose .shiki-wrapper pre.shiki {
-  background-color: #0d1117;
-  border: 1px solid #30363d;
+  background-color: #1e1e1e !important;
+  border: 1px solid #3e3e42;
+}
+
+/* Force high contrast text colors in dark mode - Override Shiki colors */
+.dark .shiki-wrapper pre.shiki code {
+  color: #d4d4d4 !important;
+}
+
+.dark .shiki-wrapper .line {
+  color: inherit;
+}
+
+/* Boost contrast for specific token types in dark mode - AGGRESSIVE */
+.dark .shiki-wrapper span[style*='color:#'] {
+  filter: brightness(2.5) saturate(1.5) contrast(1.3) !important;
+}
+
+/* Ensure strings are bright enough */
+.dark .shiki-wrapper .line span {
+  text-shadow: 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+/* Fix ALL gray/dark text - force them to be very bright */
+.dark .shiki-wrapper span[style*='color:#6'],
+.dark .shiki-wrapper span[style*='color:#7'],
+.dark .shiki-wrapper span[style*='color:#8'],
+.dark .shiki-wrapper span[style*='color:#9'] {
+  color: #d8d8d8 !important;
+  filter: none !important;
+}
+
+/* Fix very dark colors (starting with #1, #2, #3, #4, #5) */
+.dark .shiki-wrapper span[style*='color:#1'],
+.dark .shiki-wrapper span[style*='color:#2'],
+.dark .shiki-wrapper span[style*='color:#3'],
+.dark .shiki-wrapper span[style*='color:#4'],
+.dark .shiki-wrapper span[style*='color:#5'] {
+  color: #c0c0c0 !important;
+  filter: none !important;
+}
+
+/* Ensure minimum brightness for all text */
+.dark .shiki-wrapper .line {
+  mix-blend-mode: normal;
+}
+
+.dark .shiki-wrapper pre code {
+  color: #e8e8e8 !important;
+}
+
+/* Backup: if nothing else works, make everything bright */
+.dark .shiki-wrapper .line > span {
+  opacity: 1 !important;
+  min-width: 0;
 }
