@@ -18,7 +18,7 @@ export function PostCard({ post }: PostCardProps) {
       <Card className="hover:bg-accent h-full transition-colors">
         <CardHeader>
           <div className="mb-2 flex flex-wrap items-center gap-2">
-            {post.category && <CategoryBadge category={post.category} />}
+            {post.category && <CategoryBadge category={post.category} asLink={false} />}
           </div>
           <CardTitle className="text-2xl">{post.title}</CardTitle>
           <div className="text-muted-foreground flex flex-wrap items-center gap-3 text-sm">
@@ -43,7 +43,7 @@ export function PostCard({ post }: PostCardProps) {
         {(post.description || (post.tags && post.tags.length > 0)) && (
           <CardContent className="space-y-3">
             {post.description && <p className="text-muted-foreground">{post.description}</p>}
-            {post.tags && post.tags.length > 0 && <TagsList tags={post.tags} />}
+            {post.tags && post.tags.length > 0 && <TagsList tags={post.tags} asLink={false} />}
           </CardContent>
         )}
       </Card>

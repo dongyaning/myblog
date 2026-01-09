@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 
-import { CodeBlock } from '@/components/blog/code-block'
+import { HighlightedCode } from '@/components/blog/highlighted-code'
 import { Button } from '@/components/ui/button'
 
 // Custom MDX components
@@ -9,8 +9,19 @@ export const mdxComponents = {
   // Shadcn components
   Button,
 
-  // Custom code block with copy button
-  pre: (props: any) => <CodeBlock {...props} />,
+  // Custom code block with syntax highlighting
+  pre: async ({ children, ...props }: any) => {
+    // Extract code and language from children
+    const code = children?.props?.children
+    const language = children?.props?.className?.replace('language-', '') || 'text'
+
+    if (typeof code === 'string') {
+      return await HighlightedCode({ code: code.trim(), language })
+    }
+
+    // Fallback for non-standard structure
+    return <pre {...props}>{children}</pre>
+  },
 
   // Enhanced links
   a: ({ href, children, ...props }: any) => {

@@ -426,4 +426,3 @@ content/
 - 全站搜索（Algolia 或 Fuse.js）
 - 文章浏览次数统计（Vercel Postgres + Drizzle ORM）
 - 评论系统（Giscus 或 自建）
-- 邮件订阅功能

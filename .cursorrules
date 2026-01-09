@@ -42,4 +42,4 @@ The goal is to create a high-performance, minimalist, and content-focused platfo
 
 - Be concise.
 - When suggesting code, always look at existing code in the codebase first to maintain consistency.
-- If you are unsure about a library version (e.g., Next.js 15 changes), ask me or check the provided documentation.
+- If you are unsure about a library version (e.g., Next.js 16 changes), ask me or check the provided documentation.

@@ -165,3 +165,55 @@
     max-width: 1280px;
   }
 }
+
+/* Shiki code highlighting styles */
+.shiki-wrapper {
+  @apply relative overflow-hidden rounded-lg;
+}
+
+.shiki-wrapper pre {
+  @apply m-0 overflow-x-auto p-4;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.shiki-wrapper code {
+  font-family: inherit;
+}
+
+/* Light/Dark theme support for Shiki */
+.shiki-wrapper .shiki.github-dark,
+.shiki-wrapper .shiki.github-light {
+  background-color: transparent !important;
+}
+
+/* Hide light theme in dark mode */
+.dark .shiki-wrapper .shiki.github-light {
+  display: none;
+}
+
+/* Hide dark theme in light mode */
+:not(.dark) .shiki-wrapper .shiki.github-dark {
+  display: none;
+}
+
+/* Show appropriate theme */
+.dark .shiki-wrapper .shiki.github-dark {
+  display: block;
+}
+
+:not(.dark) .shiki-wrapper .shiki.github-light {
+  display: block;
+}
+
+/* Ensure code blocks have proper background */
+.prose .shiki-wrapper pre.shiki {
+  background-color: #f6f8fa;
+  border: 1px solid #e1e4e8;
+}
+
+.dark .prose .shiki-wrapper pre.shiki {
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+}
