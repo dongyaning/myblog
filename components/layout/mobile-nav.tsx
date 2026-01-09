@@ -1,6 +1,9 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+
+// 2. 引入 createPortal
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -25,6 +28,13 @@ const navItems = [
 
 export default function MobileNav({ open, onClose }: MobileNavProps) {
   const pathname = usePathname()
+  const [mounted, setMounted] = useState(false)
+
+  // Ensure portal is only rendered on client
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true)
+  }, [])
 
   // Close on escape key
   useEffect(() => {
@@ -41,9 +51,9 @@ export default function MobileNav({ open, onClose }: MobileNavProps) {
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted || !open) return null
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -62,7 +72,7 @@ export default function MobileNav({ open, onClose }: MobileNavProps) {
         </div>
 
         {/* Navigation Links */}
-        <nav className="mt-8 flex flex-col gap-4">
+        <nav className="z-50 mt-8 flex flex-col gap-4">
           {navItems.map((item) => (
             <Link
               key={item.href}
@@ -78,6 +88,7 @@ export default function MobileNav({ open, onClose }: MobileNavProps) {
           ))}
         </nav>
       </div>
-    </>
+    </>,
+    document.body
   )
 }
