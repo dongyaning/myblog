@@ -277,6 +277,7 @@ vercel.json            # Vercel Cron Jobs 配置
 ## 部署注意事项
 
 1. 配置环境变量：
+
    ```env
                POSTGRES_URL=your_vercel_postgres_url
                ADMIN_PASSWORD=your_secure_password
@@ -284,6 +285,7 @@ vercel.json            # Vercel Cron Jobs 配置
    ```
 
 2. 运行数据库迁移：
+
    ```bash
                pnpm drizzle-kit generate
                pnpm drizzle-kit migrate
