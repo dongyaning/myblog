@@ -3,31 +3,31 @@ name: Technical Blog Development Plan
 overview: Build a production-grade personal technical blog with category/tag organization, SEO optimization, and table of contents feature. Focus on minimalist design, excellent typography, and developer-focused content presentation.
 todos:
   - id: phase1-layout
-    content: "Phase 1: 核心布局与导航 - 创建 Header/Footer/MobileNav 组件"
+    content: 'Phase 1: 核心布局与导航 - 创建 Header/Footer/MobileNav 组件'
     status: completed
   - id: phase2-content-org
-    content: "Phase 2: 内容组织系统 - 实现分类和标签功能"
+    content: 'Phase 2: 内容组织系统 - 实现分类和标签功能'
     status: completed
     dependencies:
       - phase1-layout
   - id: phase3-homepage
-    content: "Phase 3: 首页与博客列表 - 创建文章卡片和列表页面"
+    content: 'Phase 3: 首页与博客列表 - 创建文章卡片和列表页面'
     status: completed
     dependencies:
       - phase2-content-org
   - id: phase4-post-enhance
-    content: "Phase 4: 文章详情增强 - 目录、代码高亮、相关文章"
+    content: 'Phase 4: 文章详情增强 - 目录、代码高亮、相关文章'
     status: completed
     dependencies:
       - phase2-content-org
   - id: phase5-seo
-    content: "Phase 5: SEO 优化 - Sitemap、RSS、元数据、结构化数据"
+    content: 'Phase 5: SEO 优化 - Sitemap、RSS、元数据、结构化数据'
     status: completed
     dependencies:
       - phase3-homepage
       - phase4-post-enhance
   - id: phase6-optimization
-    content: "Phase 6: 性能优化 - 静态生成、图片优化、移动端测试"
+    content: 'Phase 6: 性能优化 - 静态生成、图片优化、移动端测试'
     status: completed
     dependencies:
       - phase5-seo
@@ -420,8 +420,3 @@ content/
 4. **响应式**: 移动优先设计
 5. **开发者友好**: 语法高亮、复制按钮、目录导航
 6. **类型安全**: 严格的 TypeScript 类型定义
-
-## 未来扩展方向（后续阶段）
-
-- 全站搜索（Algolia 或 Fuse.js）
-- 文章浏览次数统计（Vercel Postgres + Drizzle ORM）

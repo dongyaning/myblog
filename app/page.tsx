@@ -2,6 +2,8 @@ import Link from 'next/link'
 
 import { ArrowRight } from 'lucide-react'
 
+import { PopularPosts } from '@/components/analytics/popular-posts'
+import { SiteStats } from '@/components/analytics/site-stats'
 import { PostCard } from '@/components/blog/post-card'
 import { Button } from '@/components/ui/button'
 
@@ -21,6 +23,11 @@ export default async function Home() {
         <p className="text-muted-foreground mx-auto max-w-2xl text-lg">
           一个专注于 Web 开发、JavaScript 和现代框架的技术博客
         </p>
+      </section>
+
+      {/* Site Stats */}
+      <section className="mb-16">
+        <SiteStats />
       </section>
 
       {/* Recent Posts */}
@@ -53,6 +60,11 @@ export default async function Home() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Popular Posts */}
+      <section className="mt-16">
+        <PopularPosts limit={5} />
       </section>
     </div>
   )

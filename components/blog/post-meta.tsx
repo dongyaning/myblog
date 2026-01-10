@@ -1,11 +1,11 @@
-import { Calendar, Clock, Edit } from 'lucide-react'
+import { Calendar, Clock, Edit, Eye } from 'lucide-react'
 
 import type { Frontmatter } from '@/lib/mdx'
 
 import { CategoryBadge, TagsList } from './badges'
 
 interface PostMetaProps {
-  post: Frontmatter & { slug: string; readingTime?: number }
+  post: Frontmatter & { slug: string; readingTime?: number; viewCount?: number }
 }
 
 export function PostMeta({ post }: PostMetaProps) {
@@ -43,6 +43,13 @@ export function PostMeta({ post }: PostMetaProps) {
           <div className="flex items-center gap-2">
             <Clock className="h-4 w-4" />
             <span>{post.readingTime} 分钟阅读</span>
+          </div>
+        )}
+
+        {post.viewCount !== undefined && (
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            <span>{post.viewCount.toLocaleString()} 次阅读</span>
           </div>
         )}
       </div>

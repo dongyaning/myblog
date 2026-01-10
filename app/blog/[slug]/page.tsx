@@ -5,13 +5,17 @@ import fs from 'fs'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import path from 'path'
 
+import { PageViewTracker } from '@/components/analytics/page-view-tracker'
+import { BackToTop } from '@/components/blog/back-to-top'
 import { PostCard } from '@/components/blog/post-card'
 import { PostMeta } from '@/components/blog/post-meta'
+import { ReadingProgress } from '@/components/blog/reading-progress'
 import { TableOfContents } from '@/components/blog/table-of-contents'
 import { mdxComponents } from '@/components/mdx-components'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 
+import { getPostStats } from '@/lib/db/queries'
 import { getAllPosts, getPostBySlug, getRelatedPosts } from '@/lib/mdx'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { generateArticleStructuredData, generateOpenGraph, generateTwitterCard } from '@/lib/seo'
@@ -87,6 +91,10 @@ export default async function BlogPost({ params }: PageProps) {
   const tocItems = extractTocFromContent(rawContent)
   const readingTime = calculateReadingTime(rawContent)
 
+  // Get view count from database
+  const postStats = await getPostStats(slug)
+  const viewCount = postStats?.viewCount || 0
+
   // Get navigation posts
   const allPosts = await getAllPosts()
   const currentIndex = allPosts.findIndex((post) => post.slug === slug)
@@ -101,6 +109,15 @@ export default async function BlogPost({ params }: PageProps) {
 
   return (
     <div className="container py-10">
+      {/* Reading Progress Bar */}
+      <ReadingProgress />
+
+      {/* Back to Top Button */}
+      <BackToTop />
+
+      {/* Page View Tracker */}
+      <PageViewTracker slug={slug} />
+
       {/* Structured Data (JSON-LD) */}
       <script
         type="application/ld+json"
@@ -121,7 +138,7 @@ export default async function BlogPost({ params }: PageProps) {
           <article>
             <header className="mb-8">
               <h1 className="mb-4 text-4xl font-bold tracking-tight">{meta.title}</h1>
-              <PostMeta post={{ ...meta, readingTime }} />
+              <PostMeta post={{ ...meta, readingTime, viewCount }} />
             </header>
 
             {/* Article Content */}
