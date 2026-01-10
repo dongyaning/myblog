@@ -6,9 +6,10 @@ import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { Menu, Moon, Sun } from 'lucide-react'
+import { Menu, Moon, Shield, Sun } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
 import { cn } from '@/lib/utils'
 
@@ -50,8 +51,23 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Right Side: Theme Toggle + Mobile Menu */}
+        {/* Right Side: Admin + Theme Toggle + Mobile Menu */}
         <div className="flex items-center gap-2">
+          {/* Admin Link */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link href="/admin">
+                <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Shield className="h-4 w-4" />
+                  <span className="sr-only">管理后台</span>
+                </Button>
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>管理后台</p>
+            </TooltipContent>
+          </Tooltip>
+
           {/* Theme Toggle */}
           <Button
             variant="ghost"

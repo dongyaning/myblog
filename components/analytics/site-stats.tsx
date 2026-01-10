@@ -10,6 +10,7 @@ interface SiteStats {
 
 async function getSiteStats(): Promise<SiteStats> {
   try {
+    // console.log('Fetching site stats from:', process.env.NEXT_PUBLIC_SITE_URL)
     const response = await fetch(
       `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/analytics/stats`,
       {

@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { X } from 'lucide-react'
+import { Shield, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
@@ -86,6 +86,22 @@ export default function MobileNav({ open, onClose }: MobileNavProps) {
               {item.name}
             </Link>
           ))}
+
+          {/* Divider */}
+          <div className="border-border my-2 border-t" />
+
+          {/* Admin Link */}
+          <Link
+            href="/admin"
+            onClick={onClose}
+            className={cn(
+              'hover:text-primary flex items-center gap-2 text-lg font-medium transition-colors',
+              pathname.startsWith('/admin') ? 'text-foreground' : 'text-muted-foreground'
+            )}
+          >
+            <Shield className="h-5 w-5" />
+            <span>管理后台</span>
+          </Link>
         </nav>
       </div>
     </>,

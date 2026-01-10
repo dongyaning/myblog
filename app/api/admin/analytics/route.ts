@@ -5,6 +5,7 @@ import {
   getRecentPageViews,
   getRefererStats,
   getSiteStats,
+  getUniqueVisitorsByDateRange,
   getViewsByDateRange,
 } from '@/lib/db/queries'
 
@@ -22,15 +23,25 @@ export async function GET(request: NextRequest) {
     last7Days.setDate(last7Days.getDate() - 7)
 
     if (type === 'overview') {
-      const [siteStats, popularPosts, recentViews, last30DaysData, last7DaysData, refererStats] =
-        await Promise.all([
-          getSiteStats(),
-          getPopularPosts(20),
-          getRecentPageViews(20),
-          getViewsByDateRange(last30Days, now),
-          getViewsByDateRange(last7Days, now),
-          getRefererStats(10),
-        ])
+      const [
+        siteStats,
+        popularPosts,
+        recentViews,
+        last30DaysData,
+        last7DaysData,
+        refererStats,
+        todayUniqueVisitors,
+        weekUniqueVisitors,
+      ] = await Promise.all([
+        getSiteStats(),
+        getPopularPosts(20),
+        getRecentPageViews(20),
+        getViewsByDateRange(last30Days, now),
+        getViewsByDateRange(last7Days, now),
+        getRefererStats(10),
+        getUniqueVisitorsByDateRange(today, now),
+        getUniqueVisitorsByDateRange(last7Days, now),
+      ])
 
       // Calculate today's and this week's stats
       const todayViews = last7DaysData
@@ -45,6 +56,8 @@ export async function GET(request: NextRequest) {
             ...siteStats,
             todayViews,
             weekViews,
+            todayUniqueVisitors,
+            weekUniqueVisitors,
           },
           popularPosts,
           recentViews,

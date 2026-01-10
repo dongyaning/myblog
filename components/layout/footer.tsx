@@ -1,6 +1,6 @@
 import Link from 'next/link'
 
-import { Github, Mail, Rss, Twitter } from 'lucide-react'
+import { Github, Mail, Rss, Shield, Twitter } from 'lucide-react'
 
 export default function Footer() {
   const currentYear = new Date().getFullYear()
@@ -17,6 +17,14 @@ export default function Footer() {
             <p className="text-muted-foreground text-xs">
               Built with Next.js, TypeScript, and Tailwind CSS
             </p>
+            <Link
+              href="/admin"
+              className="text-muted-foreground hover:text-primary flex items-center gap-1 text-xs transition-colors"
+              aria-label="管理后台"
+            >
+              <Shield className="h-3 w-3" />
+              <span>管理后台</span>
+            </Link>
           </div>
 
           {/* Right: Social Links */}

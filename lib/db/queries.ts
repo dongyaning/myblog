@@ -54,12 +54,12 @@ export async function getPopularPosts(limit: number = 10) {
 export async function getSiteStats() {
   try {
     const [totalViewsResult, totalPostsResult, uniqueVisitorsResult] = await Promise.all([
-      // 总浏览量
+      // 总浏览量（从汇总表）
       db.select({ total: sql<number>`sum(${postStats.viewCount})` }).from(postStats),
-      // 文章总数
+      // 文章总数（从汇总表）
       db.select({ count: sql<number>`count(*)` }).from(postStats),
-      // 独立访客总数
-      db.select({ total: sql<number>`sum(${postStats.uniqueVisitors})` }).from(postStats),
+      // 全站独立访客（从原始表全局去重，避免重复计数）
+      db.select({ total: sql<number>`count(distinct ${pageViews.visitorId})` }).from(pageViews),
     ])
 
     return {
@@ -202,5 +202,22 @@ export async function hasRecentVisit(slug: string, visitorId: string, minutesAgo
   } catch (error) {
     console.error('Error checking recent visit:', error)
     return false
+  }
+}
+
+// 获取指定时间范围的独立访客数
+export async function getUniqueVisitorsByDateRange(startDate: Date, endDate: Date) {
+  try {
+    const result = await db
+      .select({
+        total: sql<number>`count(distinct ${pageViews.visitorId})`,
+      })
+      .from(pageViews)
+      .where(and(gte(pageViews.timestamp, startDate), sql`${pageViews.timestamp} <= ${endDate}`))
+
+    return Number(result[0]?.total || 0)
+  } catch (error) {
+    console.error('Error getting unique visitors by date range:', error)
+    return 0
   }
 }

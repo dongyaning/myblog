@@ -18,6 +18,8 @@ interface AnalyticsData {
     uniqueVisitors: number
     todayViews: number
     weekViews: number
+    todayUniqueVisitors: number
+    weekUniqueVisitors: number
   }
   popularPosts: Array<{ slug: string; viewCount: number }>
   recentViews: Array<{
@@ -81,7 +83,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">今日访问</CardTitle>
@@ -89,6 +91,9 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.todayViews.toLocaleString()}</div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {data.stats.todayUniqueVisitors.toLocaleString()} 位独立访客
+            </p>
           </CardContent>
         </Card>
 
@@ -99,6 +104,9 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.weekViews.toLocaleString()}</div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {data.stats.weekUniqueVisitors.toLocaleString()} 位独立访客
+            </p>
           </CardContent>
         </Card>
 
@@ -109,16 +117,9 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.totalViews.toLocaleString()}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">独立访客</CardTitle>
-            <Users className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{data.stats.uniqueVisitors.toLocaleString()}</div>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {data.stats.uniqueVisitors.toLocaleString()} 位独立访客（全局去重）
+            </p>
           </CardContent>
         </Card>
 
@@ -129,6 +130,7 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{data.stats.totalPosts.toLocaleString()}</div>
+            <p className="text-muted-foreground mt-1 text-xs">已发布文章</p>
           </CardContent>
         </Card>
       </div>
