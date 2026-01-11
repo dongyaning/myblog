@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useTheme } from 'next-themes'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { Menu, Moon, Shield, Sun } from 'lucide-react'
+import { Menu, Moon, Search, Shield, Sun } from 'lucide-react'
 
+import { SearchDialog } from '@/components/search/search-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -26,6 +27,20 @@ export default function Header() {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false)
+
+  // Cmd/Ctrl + K 快捷键
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setSearchOpen(true)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   return (
     <header className="border-border/40 bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b backdrop-blur">
@@ -51,8 +66,26 @@ export default function Header() {
           ))}
         </nav>
 
-        {/* Right Side: Admin + Theme Toggle + Mobile Menu */}
+        {/* Right Side: Search + Admin + Theme Toggle + Mobile Menu */}
         <div className="flex items-center gap-2">
+          {/* Search Button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-9 w-9"
+                onClick={() => setSearchOpen(true)}
+              >
+                <Search className="h-4 w-4" />
+                <span className="sr-only">搜索</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>搜索 (⌘K)</p>
+            </TooltipContent>
+          </Tooltip>
+
           {/* Admin Link */}
           <Tooltip>
             <TooltipTrigger asChild>
@@ -94,7 +127,14 @@ export default function Header() {
       </div>
 
       {/* Mobile Navigation */}
-      <MobileNav open={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+      <MobileNav
+        open={mobileNavOpen}
+        onClose={() => setMobileNavOpen(false)}
+        onSearchOpen={() => setSearchOpen(true)}
+      />
+
+      {/* Search Dialog */}
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </header>
   )
 }

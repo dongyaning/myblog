@@ -2,12 +2,15 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 import { HighlightedCode } from '@/components/blog/highlighted-code'
+import Counter from '@/components/mdx/Counter'
 import { Button } from '@/components/ui/button'
 
 // Custom MDX components
 export const mdxComponents = {
   // Shadcn components
   Button,
+
+  Counter,
 
   // Custom code block with syntax highlighting
   pre: async ({ children, ...props }: any) => {

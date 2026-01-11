@@ -271,3 +271,38 @@
   opacity: 1 !important;
   min-width: 0;
 }
+
+/* ==============================================
+   Giscus Comments Styles
+   ============================================== */
+
+/* Giscus 容器 */
+.giscus-wrapper {
+  @apply w-full;
+}
+
+/* Giscus iframe 样式 */
+.giscus-wrapper iframe.giscus-frame {
+  @apply w-full;
+  min-height: 300px;
+}
+
+/* 骨架屏动画 */
+.giscus-skeleton {
+  @apply w-full;
+}
+
+/* 优化 Giscus 在暗色模式下的显示 */
+.dark .giscus-wrapper {
+  color-scheme: dark;
+}
+
+/* 确保 Giscus 内容与博客主题一致 */
+.giscus-wrapper {
+  @apply rounded-lg;
+}
+
+/* Giscus 加载时的最小高度，避免布局跳动 */
+.giscus-wrapper:empty {
+  min-height: 200px;
+}

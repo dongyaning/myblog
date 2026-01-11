@@ -7,6 +7,7 @@ import path from 'path'
 
 import { PageViewTracker } from '@/components/analytics/page-view-tracker'
 import { BackToTop } from '@/components/blog/back-to-top'
+import Comments from '@/components/blog/comments'
 import { PostCard } from '@/components/blog/post-card'
 import { PostMeta } from '@/components/blog/post-meta'
 import { ReadingProgress } from '@/components/blog/reading-progress'
@@ -191,6 +192,12 @@ export default async function BlogPost({ params }: PageProps) {
               </div>
             </section>
           )}
+
+          {/* Comments Section */}
+          <section className="border-border mt-16 border-t pt-8">
+            <h2 className="mb-6 text-2xl font-bold">💬 评论讨论</h2>
+            <Comments />
+          </section>
         </div>
 
         {/* Sidebar: Table of Contents */}

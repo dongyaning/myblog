@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 
-import { Eye, FileText, TrendingUp, Users } from 'lucide-react'
+import { Eye, FileText, TrendingUp } from 'lucide-react'
 
 import {
   PopularPostsChart,

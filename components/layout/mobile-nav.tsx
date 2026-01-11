@@ -8,7 +8,7 @@ import { createPortal } from 'react-dom'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { Shield, X } from 'lucide-react'
+import { Search, Shield, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 interface MobileNavProps {
   open: boolean
   onClose: () => void
+  onSearchOpen?: () => void
 }
 
 const navItems = [
@@ -26,7 +27,7 @@ const navItems = [
   { name: '标签', href: '/tags' },
 ]
 
-export default function MobileNav({ open, onClose }: MobileNavProps) {
+export default function MobileNav({ open, onClose, onSearchOpen }: MobileNavProps) {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
 
@@ -89,6 +90,18 @@ export default function MobileNav({ open, onClose }: MobileNavProps) {
 
           {/* Divider */}
           <div className="border-border my-2 border-t" />
+
+          {/* Search Link */}
+          <button
+            onClick={() => {
+              onSearchOpen?.()
+              onClose()
+            }}
+            className="hover:text-primary text-muted-foreground flex w-full items-center gap-2 text-left text-lg font-medium transition-colors"
+          >
+            <Search className="h-5 w-5" />
+            <span>搜索</span>
+          </button>
 
           {/* Admin Link */}
           <Link
