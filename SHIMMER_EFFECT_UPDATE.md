@@ -115,6 +115,7 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 import { Skeleton } from '@/components/ui/skeleton'
 
 // 自动启用 Shimmer 效果
+
 ;<Skeleton className="h-10 w-full" />
 ```
 

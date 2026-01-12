@@ -43,12 +43,7 @@ export function MetaEditor({ frontmatter, onChange }: MetaEditorProps) {
   }
 
   return (
-    <Accordion
-      type="single"
-      collapsible
-      defaultValue="meta"
-      className="border-border rounded-lg border"
-    >
+    <Accordion type="single" collapsible className="border-border rounded-lg border">
       <AccordionItem value="meta" className="border-none">
         <AccordionTrigger className="px-4 py-3 hover:no-underline">
           <div className="flex items-center gap-2">

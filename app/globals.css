@@ -154,8 +154,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* 优化滚动性能 */
+  * {
+    scroll-padding-top: 80px; /* 为固定头部留出空间 */
   }
 }
 

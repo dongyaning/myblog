@@ -59,6 +59,22 @@ export function useIntersectionObserver<T extends Element = HTMLDivElement>(
 
     observer.observe(element)
 
+    // 立即检查元素是否已经在视口内（解决首屏内容不显示的问题）
+    const rect = element.getBoundingClientRect()
+    const isInViewport =
+      rect.top >= 0 &&
+      rect.left >= 0 &&
+      rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+      rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+
+    if (isInViewport) {
+      setIsIntersecting(true)
+      setHasIntersected(true)
+      if (triggerOnce) {
+        observer.disconnect()
+      }
+    }
+
     return () => {
       observer.disconnect()
     }

@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight } from 'lucide-react'
 import path from 'path'
 
 import { PageViewTracker } from '@/components/analytics/page-view-tracker'
+import { FadeIn, ScrollProgress, SlideIn } from '@/components/animation'
 import { BackToTop } from '@/components/blog/back-to-top'
 import Comments from '@/components/blog/comments'
 import { PostCard } from '@/components/blog/post-card'
@@ -114,6 +115,9 @@ export default async function BlogPost({ params }: PageProps) {
 
   return (
     <div className="container py-10">
+      {/* Scroll Progress Bar */}
+      <ScrollProgress variant="gradient" height={3} />
+
       {/* Reading Progress Bar */}
       <ReadingProgress />
 
@@ -146,7 +150,7 @@ export default async function BlogPost({ params }: PageProps) {
               <PostMeta post={{ ...meta, readingTime, viewCount }} />
             </header>
 
-            {/* Article Content */}
+            {/* Article Content - 不添加动画，直接显示 */}
             <div className="prose prose-neutral dark:prose-invert max-w-none">{content}</div>
           </article>
 
@@ -199,10 +203,14 @@ export default async function BlogPost({ params }: PageProps) {
           {/* Related Posts */}
           {relatedPosts.length > 0 && (
             <section className="border-border mt-16 border-t pt-8">
-              <h2 className="mb-6 text-2xl font-bold">相关文章</h2>
+              <SlideIn direction="up">
+                <h2 className="mb-6 text-2xl font-bold">相关文章</h2>
+              </SlideIn>
               <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                {relatedPosts.map((post) => (
-                  <PostCard key={post.slug} post={post} />
+                {relatedPosts.map((post, index) => (
+                  <FadeIn key={post.slug} direction="up" delay={index * 100}>
+                    <PostCard post={post} />
+                  </FadeIn>
                 ))}
               </div>
             </section>
@@ -218,9 +226,11 @@ export default async function BlogPost({ params }: PageProps) {
         {/* Sidebar: Table of Contents */}
         {tocItems.length > 0 && (
           <aside className="hidden lg:block">
-            <div className="sticky top-20">
-              <TableOfContents items={tocItems} />
-            </div>
+            <SlideIn direction="left" delay={300}>
+              <div className="sticky top-20">
+                <TableOfContents items={tocItems} />
+              </div>
+            </SlideIn>
           </aside>
         )}
       </div>
