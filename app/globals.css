@@ -306,3 +306,41 @@
 .giscus-wrapper:empty {
   min-height: 200px;
 }
+
+/* ==============================================
+   Skeleton Shimmer Animation (骨架屏闪光动画)
+   ============================================== */
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.skeleton-shimmer {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(
+    90deg,
+    oklch(0.97 0 0) 0%,
+    oklch(0.95 0 0) 20%,
+    oklch(0.92 0 0) 40%,
+    oklch(0.95 0 0) 60%,
+    oklch(0.97 0 0) 100%
+  );
+  background-size: 1000px 100%;
+}
+
+.dark .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    oklch(0.269 0 0) 0%,
+    oklch(0.32 0 0) 20%,
+    oklch(0.38 0 0) 40%,
+    oklch(0.32 0 0) 60%,
+    oklch(0.269 0 0) 100%
+  );
+  background-size: 1000px 100%;
+}

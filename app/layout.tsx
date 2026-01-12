@@ -3,6 +3,7 @@ import { ThemeProvider } from 'next-themes'
 
 import Footer from '@/components/layout/footer'
 import Header from '@/components/layout/header'
+import { LoadingBar } from '@/components/loading/loading-bar'
 import { Toaster } from '@/components/ui/sonner'
 
 import { siteConfig } from '@/lib/seo'
@@ -55,6 +56,7 @@ export default function RootLayout({
     <html lang="zh-CN" suppressHydrationWarning>
       <body className="antialiased">
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <LoadingBar />
           <div className="flex min-h-screen flex-col">
             <Header />
             <main className="flex-1">{children}</main>
