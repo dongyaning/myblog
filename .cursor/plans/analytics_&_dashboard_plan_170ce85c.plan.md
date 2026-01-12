@@ -279,19 +279,20 @@ vercel.json            # Vercel Cron Jobs 配置
 1. 配置环境变量：
 
    ```env
-               POSTGRES_URL=your_vercel_postgres_url
-               ADMIN_PASSWORD=your_secure_password
-               JWT_SECRET=your_jwt_secret
+                  POSTGRES_URL=your_vercel_postgres_url
+                  ADMIN_PASSWORD=your_secure_password
+                  JWT_SECRET=your_jwt_secret
    ```
 
 2. 运行数据库迁移：
 
    ```bash
-               pnpm drizzle-kit generate
-               pnpm drizzle-kit migrate
+                  pnpm drizzle-kit generate
+                  pnpm drizzle-kit migrate
    ```
 
 3. 配置 Vercel Cron Jobs（在 `vercel.json` 中）：
+
    ```json
    {
      "crons": [

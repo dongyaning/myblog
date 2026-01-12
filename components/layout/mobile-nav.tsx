@@ -23,6 +23,7 @@ interface MobileNavProps {
 const navItems = [
   { name: '首页', href: '/' },
   { name: '博客', href: '/blog' },
+  { name: '系列', href: '/series' },
   { name: '分类', href: '/categories' },
   { name: '标签', href: '/tags' },
 ]
@@ -33,7 +34,6 @@ export default function MobileNav({ open, onClose, onSearchOpen }: MobileNavProp
 
   // Ensure portal is only rendered on client
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

@@ -11,13 +11,14 @@ import Comments from '@/components/blog/comments'
 import { PostCard } from '@/components/blog/post-card'
 import { PostMeta } from '@/components/blog/post-meta'
 import { ReadingProgress } from '@/components/blog/reading-progress'
+import { SeriesNavigation } from '@/components/blog/series-navigation'
 import { TableOfContents } from '@/components/blog/table-of-contents'
 import { mdxComponents } from '@/components/mdx-components'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { getPostStats } from '@/lib/db/queries'
-import { getAllPosts, getPostBySlug, getRelatedPosts } from '@/lib/mdx'
+import { getAllPosts, getPostBySlug, getRelatedPosts, getSeriesNavigation } from '@/lib/mdx'
 import { calculateReadingTime } from '@/lib/reading-time'
 import { generateArticleStructuredData, generateOpenGraph, generateTwitterCard } from '@/lib/seo'
 import { extractTocFromContent } from '@/lib/toc'
@@ -105,6 +106,9 @@ export default async function BlogPost({ params }: PageProps) {
   // Get related posts
   const relatedPosts = await getRelatedPosts(slug, 3)
 
+  // Get series navigation
+  const seriesNav = await getSeriesNavigation(slug)
+
   // Generate structured data
   const structuredData = generateArticleStructuredData(meta)
 
@@ -146,8 +150,19 @@ export default async function BlogPost({ params }: PageProps) {
             <div className="prose prose-neutral dark:prose-invert max-w-none">{content}</div>
           </article>
 
-          {/* Navigation: Previous/Next Posts */}
-          {(prevPost || nextPost) && (
+          {/* Series Navigation (if part of a series) */}
+          {seriesNav.seriesName && (
+            <SeriesNavigation
+              seriesName={seriesNav.seriesName}
+              previous={seriesNav.previous}
+              next={seriesNav.next}
+              allInSeries={seriesNav.allInSeries}
+              currentSlug={slug}
+            />
+          )}
+
+          {/* Navigation: Previous/Next Posts (only show if not in a series) */}
+          {!seriesNav.seriesName && (prevPost || nextPost) && (
             <nav className="border-border mt-16 grid gap-4 border-t pt-8 sm:grid-cols-2">
               {prevPost ? (
                 <Link href={`/blog/${prevPost.slug}`}>

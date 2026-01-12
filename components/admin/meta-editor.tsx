@@ -17,6 +17,8 @@ interface Frontmatter {
   published: boolean
   category: string
   tags: string[]
+  series?: string
+  seriesOrder?: number
 }
 
 interface MetaEditorProps {
@@ -95,7 +97,7 @@ export function MetaEditor({ frontmatter, onChange }: MetaEditorProps) {
             <Label htmlFor="description">描述</Label>
             <textarea
               id="description"
-              value={frontmatter.description}
+              value={frontmatter.description || ''}
               onChange={(e) => handleChange('description', e.target.value)}
               placeholder="输入文章描述"
               className="border-input ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring bg-background flex min-h-[80px] w-full rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
@@ -123,6 +125,32 @@ export function MetaEditor({ frontmatter, onChange }: MetaEditorProps) {
               placeholder="React, TypeScript, Next.js"
             />
           </div>
+
+          {/* 系列名称 */}
+          <div className="space-y-2">
+            <Label htmlFor="series">系列名称（可选）</Label>
+            <Input
+              id="series"
+              value={frontmatter.series || ''}
+              onChange={(e) => handleChange('series', e.target.value || undefined)}
+              placeholder="例如：React 18 完全指南"
+            />
+          </div>
+
+          {/* 系列顺序 */}
+          {frontmatter.series && (
+            <div className="space-y-2">
+              <Label htmlFor="seriesOrder">系列顺序</Label>
+              <Input
+                id="seriesOrder"
+                type="number"
+                min="1"
+                value={frontmatter.seriesOrder || 1}
+                onChange={(e) => handleChange('seriesOrder', parseInt(e.target.value) || 1)}
+                placeholder="1"
+              />
+            </div>
+          )}
 
           {/* 发布状态 */}
           <div className="flex items-center gap-2">

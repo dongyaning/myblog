@@ -26,7 +26,7 @@ export function BackToTop() {
 
   useEffect(() => {
     // 初始检查
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     toggleVisibility()
 
     window.addEventListener('scroll', throttledToggle, { passive: true })

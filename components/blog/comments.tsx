@@ -24,7 +24,6 @@ export default function Comments() {
 
   // 确保只在客户端渲染，避免 hydration mismatch
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true)
   }, [])
 

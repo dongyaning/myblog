@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 
 import matter from 'gray-matter'
 import { Eye, EyeOff, Maximize2, Minimize2, Save, Send, Trash2 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { MDXEditor } from '@/components/admin/mdx-editor'
 import { MDXPreview } from '@/components/admin/mdx-preview'
@@ -28,6 +29,8 @@ interface Frontmatter {
   published: boolean
   category: string
   tags: string[]
+  series?: string
+  seriesOrder?: number
 }
 
 export default function EditorPage() {
@@ -155,7 +158,7 @@ export default function EditorPage() {
       })
 
       if (response.ok) {
-        alert('保存成功！')
+        toast.success('保存成功', { description: `文章 "${frontmatter.title}" 已保存。` })
         setIsDirty(false)
         // 删除草稿
         draftStorage.remove(currentSlug)
@@ -166,11 +169,11 @@ export default function EditorPage() {
           setPosts(data.posts || [])
         }
       } else {
-        alert('保存失败')
+        toast.error('保存失败', { description: '保存文章时发生错误。' })
       }
     } catch (error) {
       console.error('Failed to save post:', error)
-      alert('保存失败')
+      toast.error('保存失败', { description: '保存文章时发生网络错误。' })
     } finally {
       setSaving(false)
     }
@@ -190,6 +193,7 @@ export default function EditorPage() {
 
       if (response.ok) {
         const data = await response.json()
+        toast.success('文章创建成功', { description: `新文章 "${data.title}" 已创建。` })
         // 重新加载文章列表
         const listResponse = await fetch('/api/admin/posts')
         if (listResponse.ok) {
@@ -198,11 +202,11 @@ export default function EditorPage() {
           setCurrentSlug(data.slug)
         }
       } else {
-        alert('创建失败')
+        toast.error('创建文章失败', { description: '创建新文章时发生错误。' })
       }
     } catch (error) {
       console.error('Failed to create post:', error)
-      alert('创建失败')
+      toast.error('创建文章失败', { description: '创建新文章时发生网络错误。' })
     }
   }
 
@@ -210,37 +214,46 @@ export default function EditorPage() {
   const handleDeletePost = async () => {
     if (!currentSlug) return
 
-    const confirmed = confirm('确定要删除这篇文章吗？此操作无法撤销。')
-    if (!confirmed) return
+    toast.warning('确认删除文章？', {
+      description: `您确定要删除文章 "${frontmatter.title}" 吗？此操作不可撤销。`,
+      action: {
+        label: '删除',
+        onClick: async () => {
+          try {
+            const response = await fetch(`/api/admin/posts/${currentSlug}`, {
+              method: 'DELETE',
+            })
 
-    try {
-      const response = await fetch(`/api/admin/posts/${currentSlug}`, {
-        method: 'DELETE',
-      })
-
-      if (response.ok) {
-        alert('删除成功')
-        // 删除草稿
-        draftStorage.remove(currentSlug)
-        // 重新加载文章列表
-        const listResponse = await fetch('/api/admin/posts')
-        if (listResponse.ok) {
-          const data = await listResponse.json()
-          setPosts(data.posts || [])
-          // 选择第一篇文章
-          if (data.posts && data.posts.length > 0) {
-            setCurrentSlug(data.posts[0].slug)
-          } else {
-            setCurrentSlug(null)
+            if (response.ok) {
+              toast.success('删除成功', { description: `文章 "${frontmatter.title}" 已删除。` })
+              // 删除草稿
+              draftStorage.remove(currentSlug)
+              // 重新加载文章列表
+              const listResponse = await fetch('/api/admin/posts')
+              if (listResponse.ok) {
+                const data = await listResponse.json()
+                setPosts(data.posts || [])
+                // 选择第一篇文章
+                if (data.posts && data.posts.length > 0) {
+                  setCurrentSlug(data.posts[0].slug)
+                } else {
+                  setCurrentSlug(null)
+                }
+              }
+            } else {
+              toast.error('删除失败', { description: '删除文章时发生错误。' })
+            }
+          } catch (error) {
+            console.error('Failed to delete post:', error)
+            toast.error('删除失败', { description: '删除文章时发生网络错误。' })
           }
-        }
-      } else {
-        alert('删除失败')
-      }
-    } catch (error) {
-      console.error('Failed to delete post:', error)
-      alert('删除失败')
-    }
+        },
+      },
+      cancel: {
+        label: '取消',
+        onClick: () => toast.info('删除已取消'),
+      },
+    })
   }
 
   // 快捷键支持

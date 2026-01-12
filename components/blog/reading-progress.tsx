@@ -20,7 +20,7 @@ export function ReadingProgress() {
 
   useEffect(() => {
     // 初始计算
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+
     updateProgress()
 
     // 滚动时更新（使用节流）

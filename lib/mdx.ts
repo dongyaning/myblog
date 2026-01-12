@@ -4,7 +4,7 @@ import fs from 'fs'
 import path from 'path'
 import remarkGfm from 'remark-gfm'
 
-// Extended Frontmatter with category, tags, and updated fields
+// Extended Frontmatter with category, tags, series and updated fields
 export interface Frontmatter {
   title: string
   date: string
@@ -14,6 +14,8 @@ export interface Frontmatter {
   category?: string
   tags?: string[]
   cover?: string
+  series?: string
+  seriesOrder?: number
 }
 
 export interface Post {
@@ -146,4 +148,54 @@ export async function getRelatedPosts(
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((item) => item.post)
+}
+
+// Get all unique series names
+export async function getAllSeries(): Promise<string[]> {
+  const posts = await getAllPosts()
+  const seriesSet = new Set<string>()
+
+  posts.forEach((post) => {
+    if (post.series) {
+      seriesSet.add(post.series)
+    }
+  })
+
+  return Array.from(seriesSet).sort()
+}
+
+// Get all posts in a series (sorted by seriesOrder)
+export async function getPostsBySeries(
+  seriesName: string
+): Promise<Array<Frontmatter & { slug: string }>> {
+  const posts = await getAllPosts()
+
+  return posts
+    .filter((post) => post.series === seriesName)
+    .sort((a, b) => (a.seriesOrder || 0) - (b.seriesOrder || 0))
+}
+
+// Get previous and next post in a series
+export async function getSeriesNavigation(currentSlug: string): Promise<{
+  previous: (Frontmatter & { slug: string }) | null
+  next: (Frontmatter & { slug: string }) | null
+  seriesName: string | null
+  allInSeries: Array<Frontmatter & { slug: string }>
+}> {
+  const posts = await getAllPosts()
+  const currentPost = posts.find((post) => post.slug === currentSlug)
+
+  if (!currentPost || !currentPost.series) {
+    return { previous: null, next: null, seriesName: null, allInSeries: [] }
+  }
+
+  const seriesPosts = await getPostsBySeries(currentPost.series)
+  const currentIndex = seriesPosts.findIndex((post) => post.slug === currentSlug)
+
+  return {
+    previous: currentIndex > 0 ? seriesPosts[currentIndex - 1] : null,
+    next: currentIndex < seriesPosts.length - 1 ? seriesPosts[currentIndex + 1] : null,
+    seriesName: currentPost.series,
+    allInSeries: seriesPosts,
+  }
 }

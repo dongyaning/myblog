@@ -3,6 +3,7 @@ import { ThemeProvider } from 'next-themes'
 
 import Footer from '@/components/layout/footer'
 import Header from '@/components/layout/header'
+import { Toaster } from '@/components/ui/sonner'
 
 import { siteConfig } from '@/lib/seo'
 
@@ -59,6 +60,7 @@ export default function RootLayout({
             <main className="flex-1">{children}</main>
             <Footer />
           </div>
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
