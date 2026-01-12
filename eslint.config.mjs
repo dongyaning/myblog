@@ -10,6 +10,7 @@ const eslintConfig = defineConfig([
   {
     rules: {
       '@typescript-eslint/no-explicit-any': 'off', // 关闭禁止 any 的限制
+      'react-hooks/set-state-in-effect': 'off', // 关闭 react-hooks/set-state-in-effect 规则
     },
   },
   prettierConfig,

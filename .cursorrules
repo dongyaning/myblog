@@ -46,4 +46,4 @@ The goal is to create a high-performance, minimalist, and content-focused platfo
 
 # Others
 
-- This Project is managed by pnpm, when you excute command like adding shadcn/ui components, please use the pnpm destruction: pnpm dlx shadcn@latest add xxx.
+- This Project is managed by pnpm. There is a permission issue in cursor. When you want to run a script, such as pnpm, you can tell me, and I can run it manually, not in cursor.

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
-import { BarChart3, Home, LogOut } from 'lucide-react'
+import { BarChart3, FileEdit, Home, LogOut } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 
@@ -23,9 +23,26 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               <BarChart3 className="h-6 w-6" />
               <span>管理后台</span>
             </Link>
+            <nav className="flex items-center gap-4">
+              <Link
+                href="/admin/dashboard"
+                className="hover:text-primary text-sm transition-colors"
+              >
+                数据统计
+              </Link>
+              <Link href="/admin/editor" className="hover:text-primary text-sm transition-colors">
+                文章编辑
+              </Link>
+            </nav>
           </div>
 
           <div className="flex items-center gap-4">
+            <Link href="/admin/editor">
+              <Button variant="outline" size="sm">
+                <FileEdit className="mr-2 h-4 w-4" />
+                编辑器
+              </Button>
+            </Link>
             <Link href="/">
               <Button variant="ghost" size="sm">
                 <Home className="mr-2 h-4 w-4" />

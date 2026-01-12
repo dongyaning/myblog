@@ -53,3 +53,8 @@ export async function isAuthenticated(): Promise<boolean> {
   if (!token) return false
   return await verifyToken(token)
 }
+
+export async function verifyAuth(request?: Request): Promise<{ authenticated: boolean }> {
+  const authenticated = await isAuthenticated()
+  return { authenticated }
+}
