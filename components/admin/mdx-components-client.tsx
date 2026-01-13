@@ -65,15 +65,17 @@ export const mdxComponentsClient = {
   },
 
   // Enhanced images
-  img: ({ src, alt, ...props }: any) => {
+  // 在编辑器预览中使用普通 img 标签，避免 Next.js Image 域名配置问题
+  img: ({ src, alt, title, ...props }: any) => {
     return (
       <span className="border-border block overflow-hidden rounded-lg border">
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src={src || ''}
-          alt={alt || ''}
-          width={800}
-          height={450}
+          alt={alt || '图片'}
+          title={title}
           className="w-full object-cover"
+          loading="lazy"
           {...props}
         />
       </span>
