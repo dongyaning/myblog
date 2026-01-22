@@ -21,8 +21,8 @@ export function LoadingBar() {
 
     // 模拟加载进度
     const timer1 = setTimeout(() => setProgress(40), 100)
-    const timer2 = setTimeout(() => setProgress(60), 300)
-    const timer3 = setTimeout(() => setProgress(80), 600)
+    const timer2 = setTimeout(() => setProgress(60), 200)
+    const timer3 = setTimeout(() => setProgress(80), 500)
 
     // 路由切换完成
     const completeTimer = setTimeout(() => {
@@ -31,7 +31,7 @@ export function LoadingBar() {
         setIsLoading(false)
         setProgress(0)
       }, 200)
-    }, 800)
+    }, 600)
 
     return () => {
       clearTimeout(timer1)

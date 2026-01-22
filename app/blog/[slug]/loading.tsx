@@ -1,3 +1,5 @@
+import { Divide } from 'lucide-react'
+
 import { PostDetailSkeleton } from '@/components/loading/post-detail-skeleton'
 
 /**
@@ -5,4 +7,5 @@ import { PostDetailSkeleton } from '@/components/loading/post-detail-skeleton'
  */
 export default function PostLoading() {
   return <PostDetailSkeleton />
+  // return <div>test</div>
 }

@@ -35,7 +35,7 @@ export function StaggerContainer({
         if (isValidElement(child)) {
           // 为每个子元素添加递增的延迟
           return cloneElement(child, {
-            ...child.props,
+            ...(child.props || {}),
             delay: initialDelay + index * staggerDelay,
           } as any)
         }

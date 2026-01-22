@@ -39,7 +39,7 @@ export default function HomeLoading() {
         {/* Sidebar Skeleton */}
         <aside className="hidden lg:block">
           <div className="sticky top-20 space-y-6">
-            <PopularPostsSkeleton limit={5} />
+            <PopularPostsSkeleton count={5} />
           </div>
         </aside>
       </div>
