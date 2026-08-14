@@ -1,0 +1,191 @@
+---
+title: 'React'
+date: '2025-11-02'
+updated: '2025-11-02'
+description: 'react 性能优化 react 性能优化其实就是编码层面的优化，在理解 react 渲染更新的基础上，减少不必要的计算。 如： - 使用 react.memo 进行组件记忆，对 props 进行浅比较，变化时才重新渲染组件。 - 使用 u'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# React 性能优化
+
+React 性能优化其实就是编码层面的优化，在理解 React 渲染更新的基础上，减少不必要的计算。
+
+如：
+
+- 使用 React.memo 进行组件记忆，对 props 进行浅比较，变化时才重新渲染组件。
+- 使用 useMemo 和 useCallback 分别对值和函数做缓存记忆。
+- 状态下放：状态尽可能靠下，可能影响的组件会更少。
+- 虚拟列表：大量数据只渲染当前视口可见的部分元素。
+
+- 推荐库：react-window 或 react-virtualized
+
+再就是代码分割与加载速度方面的优化
+
+- 使用 React.lazy 和 Suspense 进行组件级的按需加载（配合路由）。这样用户除此打开页面就不需要下载整个 APP 的代码（当然这个问题可以通过 RSC 架构解决）。
+- Tree Shaking： 确保使用 ES Modules 编写代码，并使用 Webpack 或 Vite 剔除掉没有用到的第三方库代码。
+
+也可以使用 React 18 引入的并发特性：
+
+- useTransition：降低更新的优先级
+- useDeferedValue：延迟更新某个值，类似于防抖，但是由 React 根据机器性能自动调度。
+
+交互方面：防抖、节流。
+
+# setState 原理
+
+首先，从宏观上来看，可以将 setSate 的整个流程拆分为四个阶段：**触发、调度、协调和提交**。
+
+- 触发
+
+- 调用 setState 后，React 会创建一个包含新状态的 update 对象，放入该组件对应的 Fiber 结点的更新队列中。
+- 同时为该更新分配优先级。
+
+- 调度
+
+- React 告诉 Scheduler 调度器，在空闲时执行新任务。
+- React 18 会批处理所有地方的 setState，将多次合并为一次渲染，提高性能。
+
+- React 批处理的时机一般是穿插在宏任务和微任务后的，也就是说，React 的 batching 会被作为一个微任务，在同步代码执行完毕后执行。
+
+- 注意：**setState 的 batch 是微任务，但是 Diff 的过程是宏任务**（通过链式 MessageChanel 实现，也就是 5ms）；而 Commit 阶段是在 Diff 完成之后同步进行的。
+
+- 注意这个过程在很多时候要比一帧的时间（如 16.63ms）快得多，所以在一帧之间，React 可能进行好几轮更新，是耗费性能的一个地方。
+
+- 但是这个问题已经被 baching update 极大缓解了，即使是有时在一帧内多操作两遍 DOM，对于现代浏览器也是可以接受的。
+- 重要的是，通过 Fiber+并发确保页面不会因为 Diff 而卡死。
+
+- 执行一段时间后（5ms），可能会被更高优先级的任务中断（React 18 Fiber 架构 + 并发控制）
+
+```javascript
+// 伪代码：React 的工作循环
+while (nextUnitOfWork !== null && !shouldYield()) {
+  nextUnitOfWork = performUnitOfWork(nextUnitOfWork);
+
+  messageChanal(..)
+}
+
+// shouldYield() 的秘密：这就是那 5ms。React 会记录开始工作的时间戳。
+// 每处理完一个 Fiber 节点，它都会看一眼时钟：“我是不是已经连续运行超过 5ms 了？”
+```
+
+# React 生命周期
+
+生命周期函数这个概念一般是在类组件中用的比较多，在类组件中，生命周期分为：挂载、更新、卸载。
+
+#### A. 挂载阶段 (Mounting)
+
+这是组件出生的过程。
+
+- `**constructor**`: 初始化 state，绑定方法。
+- `**static getDerivedStateFromProps**`: 静态方法，根据 props 来调整 state（极少用）。
+- `**render**`: **渲染阶段**。纯函数，只返回 JSX，不改动 DOM。
+- `**componentDidMount**`: **提交阶段**。组件已经挂载到真实 DOM。适合发请求、开启定时器。
+
+#### B. 更新阶段 (Updating)
+
+当 Props 或 State 改变时触发。
+
+- `**shouldComponentUpdate**`: 性能优化利器。返回 `false` 可以跳过本次 Diff。
+- `**render**`: 重新计算虚拟 DOM。
+- `**getSnapshotBeforeUpdate**`: 在最近一次渲染输出（提交到 DOM 节点）之前调用。可以用来读取滚动位置等信息。
+- `**componentDidUpdate**`: DOM 更新完成。
+
+#### C. 卸载阶段 (Unmounting)
+
+- `**componentWillUnmount**`: 临终遗言。清理定时器、取消订阅。
+
+函数组件与 Hooks：
+
+函数组件中，我们一般不再谈生命周期函数，而是谈“副作用”，useEffect 几乎承包了所有生命周期。
+
+我们可以将这个流程总结为三个核心阶段：**调度阶段**、**渲染阶段（Render Phase）**、**提交阶段（Commit Phase）**。
+
+---
+
+### 1\. 触发与调度：生命的起点
+
+一切始于 `useState` 的 setter 或 `useReducer` 的 dispatch。
+
+- **Update 挂载**：当你调用 `setCount`，React 会创建一个更新对象，将其挂载到该 Fiber 节点的 `updateQueue`中。
+- **优先级排序（Lanes）**：React 赋予这次更新一个优先级。如果是用户输入，就是高优先级；如果是数据请求返回，优先级较低。
+- **微任务调度**：React 注册一个**微任务**。当同步代码执行完，微任务启动，正式进入 Fiber 的构建之旅。
+
+---
+
+### 2\. 渲染阶段 (Render Phase)：逻辑与 Diff
+
+这是函数组件真正“执行”的阶段。它是 **异步且可中断** 的。
+
+- **函数调用**：React 开始执行你的函数组件代码 `const App = () => &#123; ... &#125;`。
+- **Hooks 链表遍历**：
+
+- React 按顺序读取 Fiber 节点上的 `memoizedState`（一个链表，存储了所有 Hook 的值）。
+- `**useState**` **/** `**useMemo**` **/** `**useCallback**`：在这个阶段计算出最终的新值。
+
+- **生成新 Fiber 树**：根据函数返回的 JSX，生成一棵新的“施工中”的 Fiber 树（Work-in-progress Tree）。
+- **Diff 算法**：对比旧树和新树，给需要变动的节点打上 **EffectTag**（如 `Placement` 插入、`Update` 更新）。
+
+**注意**：由于这个阶段可能因高优先级任务或 5ms 时间切片而**中断重来**，所以函数组件的主体部分必须是**纯函数**，不能有任何 Side Effect。
+
+Fiber 的数据结构是一个树，但是**树也是链表**！而且 Diff 是同层比较的，所以可以边执行某些组件的 render，边构建 Fiber 结点，这就是分片。
+
+---
+
+### 3\. 提交阶段 (Commit Phase)：现实的变动
+
+当 Render 阶段完成，React 得到了一份完整的“变动清单”。这个阶段是 **同步且不可中断** 的。
+
+这个阶段又可以细分为三个小的子阶段，这正是 Hooks 模拟生命周期的关键：
+
+#### ① Mutation 阶段 (DOM 操作)
+
+- React 根据 EffectTag 修改真实的 DOM 节点。
+- 此时，**DOM 已经变了，但浏览器还没画到屏幕上**。
+
+#### ② Layout 阶段 (同步副作用)
+
+- **执行** `**useLayoutEffect**` **的销毁函数**（上一次的）。
+- **执行** `**useLayoutEffect**` **的回调函数**。
+- **作用**：因为此时 DOM 已更新但未绘制，你可以在这里读取 DOM 尺寸并同步修改，用户不会看到闪烁。
+- _对应类组件_：`componentDidMount` / `componentDidUpdate` 的同步时机。
+
+#### ③ 浏览器绘制 (Paint)
+
+- 浏览器接管主线程，将 DOM 的变更画在屏幕上。用户终于看到了更新。
+
+#### ④ Passive 阶段 (异步副作用)
+
+- **执行** `**useEffect**` **的销毁函数**（上一次的）。
+- **执行** `**useEffect**` **的回调函数**。
+- **作用**：不阻塞渲染的逻辑（发请求、日志上报等）。
+
+# 基于 Fiber 的相关 API
+
+## useTransition 和 startTransition
+
+就是声明一个更低优先级，更低车道的更新，这个好理解哈。useTransition 除此之外还会返回一个 Pending 状态。
+
+## useDeferredValue
+
+如果说 `useTransition` 是降级**动作**，那么 `useDeferredValue` 就是降级**数据**。
+
+1.  当 `query` 改变时，React 会先用**旧的** `deferredQuery` 渲染一次（极速响应输入）。
+2.  紧接着，React 会在后台开启一个低优先级的并发渲染，尝试把 `deferredQuery` 更新为新值。
+
+# React 懒加载
+
+| **角色**                    | **职责**                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------ |
+| **动态\*\*** \*\*`import()` | **物理拆包**：告诉 Webpack 把代码切开。                                        |
+| `React.lazy`                | **逻辑封装**：把异步下载过程封装成 React 组件。                                |
+| `Suspense`                  | **UI 调度**：捕获 Pending 状态，决定什么时候显示 Loading，什么时候显示真内容。 |
+
+触发分包的是 js 的动态导入 import()，webpack 等打包工具看到后，就会把这个部分打包到一个小包。
+
+React.lazy 负责在组件渲染时，去服务器下载那个小包。
+
+Suspense 就负责统筹，还没下载好的时候先显示替补 fallback 占位。
+
+当然，Suspense 不是一定要配合 lazy，也可以等待别的东西，比如网络请求（lazy 也是网络请求，但不是接口请求，而是下载 js 脚本）。

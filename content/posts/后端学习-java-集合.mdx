@@ -1,0 +1,288 @@
+---
+title: '集合'
+date: '2023-05-06'
+updated: '2023-05-06'
+description: 'java 集合，也叫作容器，主要是由两大接口派生而来：一个是 collection接口，主要用于存放单一元素；另一个是 map 接口，主要用于存放键值对。对于collection 接口，下面又有三个主要的子接口：list、set 、 que'
+published: true
+category: '后端学习'
+tags: ['Java']
+---
+
+Java 集合，也叫作容器，主要是由两大接口派生而来：一个是 `Collection`接口，主要用于存放单一元素；另一个是 `Map` 接口，主要用于存放键值对。对于`Collection` 接口，下面又有三个主要的子接口：`List`、`Set` 、 `Queue`。
+
+![image.png](/images/posts/后端学习-java-集合/集合-1.png)
+
+# List
+
+## ArrayList
+
+```java
+public class ArrayList<E> extends AbstractList<E>
+        implements List<E>, RandomAccess, Cloneable, java.io.Serializable{
+
+  }
+```
+
+- `List` : 表明它是一个列表，支持添加、删除、查找等操作，并且可以通过下标进行访问。
+- `RandomAccess` ：这是一个标志接口，表明实现这个接口的 `List` 集合是支持 **快速随机访问** 的。在 `ArrayList` 中，我们即可以通过元素的序号快速获取元素对象，这就是快速随机访问。
+- `Cloneable` ：表明它具有拷贝能力，可以进行深拷贝或浅拷贝操作。
+- `Serializable` : 表明它可以进行序列化操作，也就是可以将对象转换为字节流进行持久化存储或网络传输，非常方便。
+
+看源码需要注意的点：
+
+```java
+/**
+     * 保存ArrayList数据的数组
+     */
+    transient Object[] elementData; // non-private to simplify nested class access
+
+这个数组被声明为transient 乍一看是反直觉的，其实是因为elementData后面可能有很多没用的null。
+不能直接序列化这个，需要自定义序列化的逻辑。
+```
+
+扩容机制：
+
+```java
+/**
+ * 要分配的最大数组大小
+ */
+private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
+/**
+ * ArrayList扩容的核心方法。
+ */
+private void grow(int minCapacity) {
+    // oldCapacity为旧容量，newCapacity为新容量
+    int oldCapacity = elementData.length;
+    // 将oldCapacity 右移一位，其效果相当于oldCapacity /2，
+    // 我们知道位运算的速度远远快于整除运算，整句运算式的结果就是将新容量更新为旧容量的1.5倍，
+    int newCapacity = oldCapacity + (oldCapacity >> 1);
+
+    // 然后检查新容量是否大于最小需要容量，若还是小于最小需要容量，那么就把最小需要容量当作数组的新容量，
+    if (newCapacity - minCapacity < 0)
+        newCapacity = minCapacity;
+
+    // 如果新容量大于 MAX_ARRAY_SIZE,进入(执行) `hugeCapacity()` 方法来比较 minCapacity 和 MAX_ARRAY_SIZE，
+    // 如果minCapacity大于最大容量，则新容量则为`Integer.MAX_VALUE`，否则，新容量大小则为 MAX_ARRAY_SIZE 即为 `Integer.MAX_VALUE - 8`。
+    if (newCapacity - MAX_ARRAY_SIZE > 0)
+        newCapacity = hugeCapacity(minCapacity);
+
+    // minCapacity is usually close to size, so this is a win:
+    elementData = Arrays.copyOf(elementData, newCapacity);
+}
+```
+
+对于Java 8来说，如果是无参构造，一开始是不会分配数组的（虽然默认大小为10），直到add第一个元素，才会分配大小为10的数组。当然，如果是有参构造，就会初始化传入的大小。
+
+后面，每次再扩容就扩容1.5倍。
+
+如果要扩容的大小大于了MAX_ARRAY_SIZE，就会执行hugeCapacity方法，容量大于MAX_ARRAY_SIZE，容量就是Integer.MAX_VALUE，否则就是MAX_ARRAY_SIZE：Integer.MAX_VALUE-8，这个-8实际上是给一些对象额外信息预留的空间，大于这个值分配Integer.MAX_VALUE，这个实际上是不允许的，很大概率会报内存溢出。
+
+这是 JVM 的**硬性安全限制**，与你设置 `-Xmx` 多大无关。即使你有 1TB 内存，也无法创建长度为 `Integer.MAX_VALUE` 的数组。
+
+fail-fast 和 fail-safe：
+
+- **fail-fast**：**“宁可 crash，也不给你错误结果”** → 适用于需要及时发现问题的场景
+- **fail-safe**：**“我可以给你旧数据，但绝不 crash”** → 适用于高可用、容忍弱一致性的并发场景
+
+💡 **记住**：
+
+- **非并发集合（**`**ArrayList**` **等） = fail-fast**
+- `**java.util.concurrent**` **包中的集合 = fail-safe（或无 fail-fast 语义）**
+
+# Set
+
+Comparable 和 Comparator：
+
+- `**Comparable**`：类自带的“身份证排序规则”——**默认、唯一、内建**。
+- `**Comparator**`：外部提供的“临时排序指令”——**灵活、多样、可覆盖默认**。
+- **当你指定** `**Comparator**`**，就等于告诉集合：“别管它自己怎么想，按我说的排！”**
+
+Comparable是类里面声明的默认行为，Comparator是集合排序指定的行为，会覆盖Comparable.
+
+返回值规则两者相同：
+
+| **返回值**           | **含义**                                                   |
+| -------------------- | ---------------------------------------------------------- |
+| **负整数（&lt; 0）** | **当前对象（或 **`o1`**）排在参数对象（或 **`o2`**）前面** |
+| **0**                | 两者相等（排序时顺序无关）                                 |
+| **正整数（> 0）**    | **当前对象（或 **`o1`**）排在参数对象（或 **`o2`**）后面** |
+
+💡 **统一口诀**：  
+**“比较结果为负，前者排在前面；结果为正，前者排在后面。”**
+
+HashSet、LinkedHashSet、TreeSet
+
+ArrayDeque 和 LinkedList：
+
+二者都实现 Deque接口，一个是可变长数组一个是链表，前者不能存null。
+
+队列和栈使用ArrayDeque实现更好，如果不需要存NULL的话。
+
+BlockingQueue
+
+# Map
+
+## HashMap
+
+注意一下hashmap的扩容机制，容量始终保持是2的幂次：
+
+```java
+/**
+ * Returns a power of two size for the given target capacity.
+ */
+static final int tableSizeFor(int cap) {
+    int n = cap - 1;
+    n |= n >>> 1;
+    n |= n >>> 2;
+    n |= n >>> 4;
+    n |= n >>> 8;
+    n |= n >>> 16;
+    return (n < 0) ? 1 : (n >= MAXIMUM_CAPACITY) ? MAXIMUM_CAPACITY : n + 1;
+}
+
+>>>是无符号右移（逻辑右移），高位补0
+为什么是1,2,4,8,16？
+因为最大大小就是Integer.MAX_VALUE，而int是32位，这些数字加起来就可以覆盖int的全部二进制位。
+
+那为什么大小要是 2的幂次？
+因为计算桶的时候逻辑上是 hash % table.length
+为了位运算优化计算，写为：index = hash & (table.length - 1)
+这个位运算只有在 table.length 为 2的幂次时才等价于 上面的取模运算
+
+还有一个原因是可以进行扩容优化：
+旧索引：hash & 15 → 取低 4 位
+新索引：hash & 31 → 取低 5 位
+新索引是否变化，只取决于 hash 的第 5 位（从 0 开始）：
+所以可以简单地将第五位为1的数据加上一个oldcap即可，效率高且分布均匀。（不然得全量重新映射）
+```
+
+HashMap和TreeMap
+
+`TreeMap` 和`HashMap` 都继承自`AbstractMap` ，但是需要注意的是`TreeMap`它还实现了`NavigableMap`接口和`SortedMap` 接口。
+
+**相比于**`**HashMap**`**来说，** `**TreeMap**` **主要多了对集合中的元素根据键排序的能力以及对集合内元素的搜索的能力。**
+
+HashMap的东西还是挺多，也比较重要，我这里就不写太多，直接重看JavaGuide的集合（下）复习即可。  
+HashMap遍历方式：
+
+- 迭代器
+
+- EntrySet
+
+```java
+Iterator<Map.Entry<Integer, String>> iterator = map.entrySet().iterator();
+while (iterator.hasNext()) {
+    Map.Entry<Integer, String> entry = iterator.next();
+    System.out.println(entry.getKey());
+    System.out.println(entry.getValue());
+}
+```
+
+- KeySet
+
+```java
+Iterator<Integer> iterator = map.keySet().iterator();
+while (iterator.hasNext()) {
+    Integer key = iterator.next();
+    System.out.println(key);
+    System.out.println(map.get(key));
+}
+```
+
+- ForEach
+
+- EntrySet
+
+```java
+for (Map.Entry<Integer, String> entry : map.entrySet()) {
+    System.out.println(entry.getKey());
+    System.out.println(entry.getValue());
+}
+```
+
+- KeySet
+
+```java
+for (Integer key : map.keySet()) {
+    System.out.println(key);
+    System.out.println(map.get(key));
+}
+```
+
+- Lambda（好用）
+
+```java
+map.forEach((key, value) -> {
+    System.out.println(key);
+    System.out.println(value);
+});
+```
+
+- Stream流的ForEach 及其 Parallel版本
+
+### HashMap源码
+
+```java
+static final int hash(Object key) {
+  int h;
+  // key.hashCode()：返回散列值也就是hashcode
+  // ^：按位异或
+  // >>>:无符号右移，忽略符号位，空位都以0补齐
+  return (key == null) ? 0 : (h = key.hashCode()) ^ (h >>> 16);
+}
+
+这个是扰动函数，是对hashcode的扰动
+因为如果直接用 hashcode(key) & (length-1)，只能利用到hashcode的低位，低位重复率比较高，
+且高位信息完全被浪费了。
+通过这个扰动，让高位16位和低16位异或，做一次扰动，把高位信息也考虑上。
+
+hash bucket index = hash(key) & (length-1)
+```
+
+先说一下哈希冲突解决规则：
+
+java8之前就是拉链法。
+
+8加入了红黑树，链表长度大于阈值默认8，调用treeifyBin方法，方法中判断数组长度大于等于64，如果是，链表->红黑树，否则执行resize对数组扩容。后面如果链表长度小于阈值默认6，就会将红黑树再换为链表。
+
+这个扩容也是有讲究的，因为是hash，如果把数组装的太满会使冲突变频繁。所以有一个loadFactor负载因子。容量\*负载因子这个值就是扩容的临界threshold，默认0.75，就是要留一些空间不装数据。
+
+再说一下resize函数，这个resize函数有两个作用：
+
+1.  第一次调用的时候初始化table数组，默认大小为16。
+2.  之后扩容table大小为之前的两倍，并rehash（通过 hash & oldCap 实现）
+
+- 旧容量：`oldCap = 16` → 二进制 `10000`
+- 新容量：`newCap = 32` → 二进制 `100000`
+- 旧索引：`hash & 15`（取低 4 位）
+- 新索引：`hash & 31`（取低 5 位）
+- 所以新索引是否变化只取决于hash的第五位
+
+- 如果 hash 的第五位是 0，新索引 = 旧索引
+- 如果 hash 的第五位是 1，新索引 = 旧索引 + oldCap（因为是翻倍了，相当于前边一半后边一半）。
+- 通过类似的方式也实现了红黑树和链表的一分为二。
+
+- 红黑树分开后如果链表长度低于阈值，会退化为链表。
+
+## ConcurrentHashMap
+
+JDK1.7 之前：Segment 段，每个段一把锁，一个段锁上了不影响其他段。
+
+JDK1.8 之后：几乎重写了 ConcurrentHashMap，取消了 Segment 分段锁，采用 Node + CAS + synchronized 保证线程安全。数据结构类似 HashMap（数组+链表+红黑树） 锁粒度更细，`synchronized` 只锁定当前链表或红黑二叉树的首节点，这样只要 hash 不冲突，就不会影响其他 Node 的读写，效率大幅提升。
+
+ConcurrentHashMap 是线程安全的，但不代表其符合操作是原子的。
+
+```java
+// 线程 A
+if (!map.containsKey(key)) {
+map.put(key, value);
+}
+// 线程 B
+if (!map.containsKey(key)) {
+map.put(key, anotherValue);
+}
+// 这种情况是会出现线程问题的。
+```
+
+​

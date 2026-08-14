@@ -1,0 +1,39 @@
+---
+title: 'H5'
+date: '2025-09-16'
+updated: '2025-09-16'
+description: 'offset、scroll、client 的区别 client： client 指的是元素的内部可视区域。它不关心边框有多厚，也不关心内容溢出了多少，只关心用户能看到的“内部空间”。 宽高就是 content + padding，不包含 b'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# offset、scroll、client 的区别
+
+**client：**
+
+`client` 指的是元素的**内部可视区域**。它不关心边框有多厚，也不关心内容溢出了多少，只关心用户能看到的“内部空间”。
+
+宽高就是 content + padding，不包含 border
+
+top/left 实际就是边框的宽度
+
+**offset：**
+
+`offset` 指的是元素在页面上**实际占用的空间**。它是最“诚实”的属性，把边框和滚动条都算进去了。
+
+宽高就是 content + padding + border + scrollbar
+
+top/left 就是相对于其偏移父级的距离。
+
+**scroll：**
+
+`scroll` 指的是元素的**实际内容大小**，包括因为溢出而隐藏在滚动条后面的部分。
+
+**scrollTop / scrollLeft**：
+
+**唯一可写的属性**。表示滚动条已经卷上去（隐藏）的距离。常用于判断“是否滚动到底部”。
+
+`scrollHeight - scrollTop === clientHeight` 说明已经滑到底了
+
+​

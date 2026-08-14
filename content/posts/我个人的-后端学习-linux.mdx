@@ -1,0 +1,72 @@
+---
+title: 'Linux'
+date: '2023-08-08'
+updated: '2023-08-08'
+description: '常见版本 - 红帽系列 - 官方的，提供服务的 - redhat - centos（和红帽是一样的，社区版） - debian系列 - ubantu - ... 目录结构 linux一切皆文件，没有盘符。 / 是根目录，root是管理员的家'
+published: true
+category: '后端学习'
+tags: []
+---
+
+#### 常见版本
+
+- 红帽系列
+
+- 官方的，提供服务的
+- redhat
+- centOS（和红帽是一样的，社区版）
+
+- Debian系列
+
+- Ubantu
+
+- ...
+
+#### 目录结构
+
+Linux一切皆文件，没有盘符。
+
+/ 是根目录，root是管理员的家目录 /home/username是普通用户的家目录。
+
+在/根目录下：
+
+- bin（binary）：存放脚本命令文件，之所以叫二进制是历史原因，命令是二进制
+- sbin (s: super)：更高级的脚本
+- boot: 内核相关，不要动
+- dev：设备device，包括cpu，磁盘等
+- etc：环境
+- lib, lib64: library，依赖
+- media：鼠标键盘啥的
+- mnt：磁盘挂载
+- opt：应用软件
+- proc：也是系统相关
+- run, srv：部署的服务
+- var：日志
+
+#### 远程连接服务器
+
+可以使用xshell、finalshell，传输文件使用xftp
+
+### 命令篇
+
+#### 帮助类
+
+语法：man [命令或配置文件] （获得帮助信息）
+
+man ls
+
+utools工具软件
+
+#### 开关机类（学习，真正的服务器一般不会关机）
+
+基本语法：
+
+sync 内存中的数据同步到硬盘
+
+poweroff = shutdown -h now 关机
+
+reboot = shutdown -r now 重启
+
+shutdown [选项] 时间（分钟） 定时操作
+
+​

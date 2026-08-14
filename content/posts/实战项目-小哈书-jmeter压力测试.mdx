@@ -1,0 +1,25 @@
+---
+title: 'Jmeter压力测试'
+date: '2023-02-02'
+updated: '2023-02-02'
+description: '术语： - 并发用户：在性能测试工具中，一般称为虚拟用户（virtual user，简称 vu），指的是现实系统中操作业务的用户。 - qps queries per second：每秒执行的查询次数。例如，如果一个网站的首页每秒可以响应 '
+published: true
+category: '后端学习'
+tags: ['实战项目', '小哈书']
+---
+
+术语：
+
+- **并发用户**：在性能测试工具中，一般称为虚拟用户（Virtual User，简称 VU），指的是现实系统中操作业务的用户。
+- **QPS (Queries Per Second)**：每秒执行的查询次数。例如，如果一个网站的首页每秒可以响应 100 次用户请求，则该页面的 QPS 为 100。
+- **TPS (Transaction Per Second)**: 每秒事务数（吞吐量），是衡量系统性能的一个非常重要的指标。事务通常是指一系列相关的操作，例如一个在线商城，在高峰期平均每秒能够完成多少笔交易。
+- **RPS（Request Per Second）**：每秒请求数。RPS模式适合用于容量规划和作为限流管控的参考依据。
+- **RT（Response Time）**：响应时间，指的是业务从客户端发起到客户端接收的时间。
+
+​
+
+目前主流的几种性能压测工具，包括 Apache JMeter、ApacheBench（ab）、wrk，以下多方面分析这些压测工具的优缺点。
+
+先在本地机器上把 Jmeter 工具安装好。
+
+JMeter 是 Apache 组织开发的一个开源的性能测试工具，主要用于对Web应用进行功能测试和性能测试。它最初是为了进行软件性能测试而设计的，但随着时间的发展，它的功能已经扩展到可以支持多种协议的测试，包括 HTTP、HTTPS、FTP、JDBC、JMS、SMTP 等。

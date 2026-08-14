@@ -1,0 +1,233 @@
+---
+title: '日志篇'
+date: '2023-09-23'
+updated: '2023-09-23'
+description: '首先，与select类似，update语句也会走之前基础篇提到过的那个架构，连接器，解析器，预处理器，优化器，执行器，与之前不同的是，更新语句会涉及到三种日志操作：undo log，redo log，binlog. undo log（回滚日'
+published: true
+category: '后端学习'
+tags: ['Mysql']
+---
+
+首先，与SELECT类似，UPDATE语句也会走之前基础篇提到过的那个架构，连接器，解析器，预处理器，优化器，执行器，与之前不同的是，更新语句会涉及到三种日志操作：undo log，redo log，binlog.
+
+# undo log（回滚日志）& redo log（重做日志）
+
+undo log 实现 事务原子性 和 MVCC。
+
+实际上就是在操作的时候记录一下怎么做的，比如更新操作就记录更新的哪个主键，旧值是啥，删除操作就记录一下删除的内容，增加操作就记录一下增加的主键。
+
+·需要回滚的时候就逆向操作再改回去即可。
+
+对于MVCC，实际上就是之前基础篇说的，记录的隐藏字段有trx_id和roll_pointer，**roll_pointer 指向的内容就是undo log里面的记录**。
+
+首先一定要先明确一点：**undo log是用于回滚的，而且对于某条记录来说，其历史版本是链式的，链上是存在多个事务的**。
+
+undo log不能无限扩张下去，基于以上原则，后台线程会对undo log做清理，清理原则是：在全局维护一个当前活跃的（未提交未回滚）最小事务id，如果undo 记录的id小于这个最小活跃事务id，那么就可以删除了，因为这意味着已经没有哪个事务的Read View需要看到这个历史版本了。
+
+整体下看我这个总结：
+
+```latex
+首先，undo log依赖redo log持久化，undo log的修改也会写入redo log的undo页，甚至可以说redo log是包含undo log的。
+
+从功能上来说，undo log是为了回滚和MVCC，实现原子性和隔离性；redo log是为了故障恢复，实现持久性。原子性，隔离性，持久性三者又保证了一致性，实现事务ACID四大原则。
+
+先讲redo log，redo log的写入时机是在增删改操作之后，要把操作后的结果记下来。记录的方式不是直接写到磁盘，而是写到redo log专门的缓冲区redo log buffer。刷盘策略有两个方面，首先是每秒刷盘，再就是事务提交之前根据配置刷盘。配置有三种：立即刷盘、放到操作系统的缓冲区、交给每秒刷盘。
+redo log能实现持久化是保证了：redo log的刷盘在数据页的刷盘之前。也就是说，只有redo log刷盘了，数据页才能刷。这样的结果是：1.redo log没刷上，那数据页也没刷上，等于什么也没做，不会出错。2.redo log刷了，数据页没刷。可以根据redo log恢复。3.都没刷，同1。
+对于redo log如何保证刷在数据页之前，是通过LSN机制实现的，数据页和redo记录会维护共有的LSN，只有当数据页的page_LSN小于等于redo已刷盘的最大LSN时，才允许数据页刷盘。
+redo log本身的内容刷盘安全性是通过checkpoint机制保证，因为redo log是两个文件循环写，后面的会覆盖前面的，通过checkpoint和write pointer的相对大小可以保证这一点。
+
+对于undo log，形式就类似于真实的数据记录，实际上就是更早版本的记录，只不过多了一些东西，比如操作的事务id。所有事务共享undo log，记录通过roll_pointer形成版本链。
+undo log有两个功能：1.事务回滚 2.快照读事务隔离。
+undo log不能无限扩张，需要后台线程去清理不需要的undo记录。实现方式是维护当前活跃的最小事务id，如果undo记录的操作事务id < min_trx_id，就可以删除。
+针对这个问题的理解，也可以分开来看：
+1.对于回滚功能，实际上条件要宽容一些，只需要保证“事务已经结束了”，就可以删了。但是不能只考虑这个，还要考虑快照读。
+2.对于快照读，只要undo记录的操作事务id小于了min_trx_id，对于现在和将来的事务就不会再需要这条undo记录了。
+探究原因，当前记录被需要有两种可能：
+1.作为版本链的跳板，找到更早的记录。这是不可能的，因为对于后面的事务来说，此事务的操作是可见的，不可能跳过当前记录去找更早的记录。
+2.这个undo记录就是执行快照读的事务的最新可见版本，这种情况隐含说明一个问题：数据页已经被改了，既然被改了就一定是被后面的事务改的（因为这些事务都不可见，一定是后面的事务）。被后面的事务改 = undo记录的操作事务id > min_trx_id，不符合条件，不会被删。
+```
+
+![583cabe4fc4631550e3c58eb42f745d5.png](/images/posts/后端学习-mysql-日志篇/日志篇-1.png)
+
+有一点需要明确一下：
+
+- undo log 逻辑内容：`&#123;trx_id=100, roll_ptr=..., old_value='Alice'&#125;`
+- redo log 物理记录：`&#123;page_id=200, offset=1024, data=[0x41 0x6C 0x69 0x63 0x65]&#125;`
+
+undo记录的是数据记录本身，而redo关心的是物理页的修改，不能说redo包含undo，redo只是为了保证undo崩溃后不丢。改数据页->生成undo->将二者的修改记录到redo。
+
+**undo指的是逻辑结构，是可以用于回滚的那些记录，不管是在内存还是在磁盘，更多地是逻辑层面上的东西**。
+
+**undo就是undo，redo只是可以在崩溃后帮助重做undo的状态！**
+
+# binlog
+
+binlog在**Server层**，**与存储引擎无关**，记录的是逻辑上的变更操作，比如说SQL语句（默认不记录SELECT, SHOW等）。
+
+binlog主要用于**主从复制**、基于时间点的恢复、数据备份等。
+
+## binlog 与 redo log对比
+
+- 层级区别，Server和InnoDB存储引擎
+- binlog记录逻辑日志，redo log记录物理日志，页级别的物理修改。
+- 持久化目的：binlog用于主从复制、数据恢复；redo log用于崩溃恢复
+- 写入时机：binlog是在提交的时候（提交前）对事物一次性写入的，记录的都是已经提交的事务。
+- binlog不循环写，只追加，记录全量数据。
+
+## binlog三种格式
+
+- STATEMENT：原始SQL语句
+
+- 日志量小
+- 但 NOW()，RAND()等会造成不一致
+
+- ROW（推荐，普遍使用的方式）：每一行的实际变更
+
+- 安全，精确
+- 但日志量大
+
+- MIXED：默认用STATEMENT，遇到不安全语句切换到ROW
+
+## 主从复制
+
+- **主库（Master / Source）**：接受写操作（INSERT/UPDATE/DELETE），产生 binlog。
+- **从库（Slave / Replica）**：复制主库的数据变更，保持数据同步，通常用于读操作或灾备。
+
+复制：即从库重放主库的 binlog 事件
+
+### 复制基本流程
+
+binlog + 三个线程（传统异步复制）
+
+1.  主库上的 Binlog Dump Thread
+
+1.  从库连接时，主库启动一个BDT，负责发送binlog给从库
+
+1.  从库 I/O Thread
+
+1.  连接主库，请求从指定位置开始的binlog
+1.  写入本地relay log（中继日志）
+1.  更新master.info，记录同步进度
+
+1.  从库 SQL Thread
+
+1.  读取 relay log 中的事件，逐条重放，使从库数据与主库一致
+1.  更新relay-log.info，记录重放进度
+
+## 三种复制模式
+
+| **模式**                              | **说明**                                                | **优点**                     | **缺点**                                      |
+| ------------------------------------- | ------------------------------------------------------- | ---------------------------- | --------------------------------------------- |
+| **异步复制（Asynchronous）**          | 主库写完 binlog 就返回成功，不等从库                    | 性能最高                     | 可能丢数据（主库宕机时从库未收到最新 binlog） |
+| **半同步复制（Semi-Synchronous）**    | 主库至少等**一个**从库收到并写入 relay log 后才返回成功 | 数据更安全                   | 延迟增加，网络抖动影响大                      |
+| **组复制 / MGR（Group Replication）** | 基于 Paxos 协议的多主或单主强一致性复制                 | 高可用、自动选主、数据强一致 | 配置复杂，性能开销大                          |
+
+生产中常用：异步复制 + ROW 格式的 binlog
+
+# 两阶段提交协议（Two-Phase Commit，2PC）
+
+## 背景（解决什么问题）
+
+MYSQL的事务提交涉及两个关键日志：
+
+- redo log：用于崩溃恢复
+- binlog：用于主从复制（主要）和时间点恢复
+
+这就说明：**redo log决定主库内容，binlog决定从库内容**。
+
+如果redo log丢了，binlog没丢，主从不一致。
+
+redo log没丢，binlog丢了，主从不一致。
+
+都是不允许的，所以需要一个策略来实现redo log和bin log两个日志刷盘的原子性。
+
+## 两阶段提交流程
+
+Mysql开启一个内部XA事务，执行提交：
+
+**Phase 1: Prepare**
+
+首先将XID写入redo，redo写入buffer，标记状态为Prepare，根据配置刷盘
+
+此时事务未提交，如果崩溃，可检查binlog是否存在该事务。
+
+**Phase 2: Commit**
+
+XID写入binlog，binlog写入buffer，根据配置刷盘
+
+写入成功，将redolog状态从Prepare改为Commit。
+
+整体流程为：redolog 刷 & prepare -> binlog刷 -> redolog commit
+
+**binlog刷先于redolog commit**，只要崩溃，就可以发现redolog没commit，根据redo重做undo，再根据undo回滚。
+
+binlog和redo log之间根据XID关联。
+
+**两阶段提交 + 安全刷盘配置，是保证数据一致性的基石**。
+
+MySQL **是通过两阶段提交（2PC）的\*\***执行顺序和刷盘控制**，来保证 **redo log 的 prepare 阶段先于 binlog 刷盘\*\*，从而确保崩溃恢复时能正确判断事务状态。
+
+为了保证 redo log 磁盘写入先于 binlog，需要配置双 1 策略：
+
+sync_binlog=1 + innodb_flush_log_at_trx_commit=1
+
+innodb_flush_log_at_trx_commit = 1，事务提交时立即刷盘，保证 prepare 阶段 redo log 先刷盘。
+
+sync_binlog = 1，事务提交时立即刷盘，保证 binlog 在 commit 之前落盘。
+
+这样的话，redo 一定先于 binlog，如果 binlog 没刷，就一定没提交，就可以回滚这个事务。
+
+## 两阶段提交问题
+
+- redo 和 binlog 各自刷盘，至少两次 fsync
+- 相比单日志系统，提交延迟更高
+- 锁竞争激烈，早期mysql版本通过prepare_commit_mutex锁来保证事务的提交顺序，高并发下性能不佳
+
+### 组提交
+
+mysql5.6+引入，允许多个事务共享一次fsync，提升并发提交性能。
+
+#### binlog Group Commit 5.6引入
+
+将binlog提交分为三个队列阶段：
+
+1.  Flush Stage：将多个事务的binlog写入binlog buffer -> 写入 OS cache
+2.  Sync Stage：调用一次fsync刷盘binlog
+3.  通知InnoDB提交，标记redo为commit
+
+工作流程：
+
+1.  事务 A 进入 Flush Stage，获得 LOCK_log，写 binlog 到 buffer。
+2.  事务 B、C 到达，发现 LOCK_log 被占，**排队等待**。
+3.  A 完成 Flush，释放 LOCK_log，进入 Sync Stage（拿 LOCK_sync）。
+4.  B、C 立即抢到 LOCK_log，**一起写 binlog**（形成“组”）。
+5.  A 执行 `fsync()`，**一次性刷掉 A+B+C 的 binlog**。
+6.  所有事务进入 Commit Stage，通知 InnoDB 提交。
+
+A相当于是Leader
+
+✅ 结果：**3 个事务只用了 1 次 fsync()**！
+
+#### InnoDB redo log group commit
+
+多个事务的redo log先写入redo log buffer，第一个事务刷盘会顺带把所有redo一起刷
+
+与Binlog协同优化，redo刷盘在binlog的sync阶段前后。
+
+# 磁盘IO高的处理方法
+
+1.  设置组提交的时间延迟binlog_froup_commit_sync_delay 和 binlog_group_commit_sync_no_delay_count参数，延迟刷盘时机。
+2.  sync_binlog位置大于1，累计N个才刷盘，有丢失风险。
+3.  innodb_flush_log_at_trx_commit设置为2，刷到系统的page cache，但系统宕机会丢失。
+
+# 慢查询日志（Slow Query Log）
+
+慢查询日志记录了执行时间超过 long_query_time（默认是 10s）的所有查询，在我们解决 SQL 慢查询（SQL 执行时间过长）问题的时候经常会用到。
+
+默认关闭，开启：
+
+```sql
+SET GLOBAL slow_query_log=ON
+```
+
+​

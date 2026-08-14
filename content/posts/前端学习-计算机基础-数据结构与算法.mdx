@@ -1,0 +1,64 @@
+---
+title: '数据结构与算法'
+date: '2024-09-19'
+updated: '2024-09-19'
+description: '堆 建堆：对所有非叶节点的自顶向上堆化。（以每个非页结点为根的子树先向下推）。 最后一个非页结点就是最后一个结点的父节点。 插入元素就是先把元素放到最后，循环向上比较。 删堆顶就是交换堆顶和最后一个元素，size--， 然后向下交换。 快速'
+published: true
+category: '前端学习'
+tags: ['计算机基础']
+---
+
+# 堆
+
+建堆：对**所有非叶节点**的自顶向上堆化。（以每个非页结点为根的子树先向下推）。
+
+**最后一个非页结点就是最后一个结点的父节点**。
+
+插入元素就是先把元素放到最后，循环向上比较。
+
+删堆顶就是交换堆顶和最后一个元素，size--， 然后向下交换。
+
+# 快速排序
+
+这里用 `第 K 大的元素`那个题的代码学习，记住这种分区方式，这个是 **Hoare 分区。**
+
+```javascript
+/**
+ * @param {number[]} nums
+ * @param {number} k
+ * @return {number}
+ */
+var findKthLargest = function (nums, k) {
+  return quickSelect(nums, 0, nums.length - 1, nums.length - k)
+}
+
+const quickSelect = (nums, l, r, k) => {
+  if (l === r) return nums[k]
+
+  // Hoare partition
+  const x = nums[l] // pivot
+  let i = l - 1
+  let j = r + 1
+
+  while (true) {
+    do {
+      i++
+    } while (nums[i] < x)
+    do {
+      j--
+    } while (nums[j] > x)
+    if (i < j) {
+      ;[nums[i], nums[j]] = [nums[j], nums[i]]
+    } else {
+      break
+    }
+  }
+
+  // 此时 [l, j] <= x, [j+1, r] >= x
+  if (k <= j) {
+    return quickSelect(nums, l, j, k)
+  } else {
+    return quickSelect(nums, j + 1, r, k)
+  }
+}
+```

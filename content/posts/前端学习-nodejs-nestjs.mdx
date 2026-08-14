@@ -1,0 +1,55 @@
+---
+title: 'NestJS'
+date: '2025-10-21'
+updated: '2025-10-21'
+description: '理解核心：牺牲一定灵活性，以清晰的职责、流程划分来保证大型项目的结构清晰。 latex 1. node / http server 收到请求 ↓ 2. nest platform adapter 接管请求 这一步就是把原始请求包装斤自己的执'
+published: true
+category: '前端学习'
+tags: ['NodeJS']
+---
+
+理解核心：牺牲一定灵活性，以清晰的职责、流程划分来保证大型项目的结构清晰。
+
+```latex
+1. Node / HTTP Server 收到请求
+   ↓
+2. Nest Platform Adapter 接管请求
+    这一步就是把原始请求包装斤自己的执行模型里，准备进入后面的生命周期。
+    即进行一层Nest化包装。
+   ↓
+3. Middleware
+    偏底层的通用处理，如：
+      日志记录、请求ID、CORS、cookie解析等。
+   ↓
+4. Guard
+    判断是否能访问，这个请求有没有资格继续往下走。
+    如：
+      是否登录、token是否有效、用户角色是否满足、是否有访问某资源的权限。
+   ↓
+5. Interceptor before
+    进入Controller之前的拦截器，这个是执行前。
+    执行前可以做：
+      记录开始时间、统一日志、缓存判断、给请求上下文加东西。
+   ↓
+6. Pipe
+    真正的Controller之前，做参数校验和转换，
+    负责：
+      从请求中取出参数、必要时做类型转换、根据DTO做校验、过滤或拒绝非法字段。
+   ↓
+7. Controller
+   ↓
+8. Service / Provider
+   ↓
+9. Interceptor after
+    进入Controller之后的拦截器，
+    执行后可以做：
+      统一包装响应、转换返回数据、记录耗时、缓存结果、序列化处理、隐藏敏感字段
+   ↓
+10. Exception Filter
+    错误 -> HTTP 响应
+    在生命周期的任何一个阶段报错，都会触发这一阶段。
+   ↓
+11. HTTP Response 返回给客户端
+    最后 Nest 把 Controller 返回值，或者 Exception Filter 生成的错误响应，
+    交给底层 HTTP adapter，最终返回给浏览器。
+```

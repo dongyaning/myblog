@@ -1,0 +1,287 @@
+---
+title: 'IO'
+date: '2023-05-29'
+updated: '2023-05-29'
+description: 'java io 流的 40 多个类都是从如下 4 个抽象类基类中派生出来的。 - inputstream/reader: 所有的输入流的基类，前者是字节输入流，后者是字符输入流。 - outputstream/writer: 所有输出流的基'
+published: true
+category: '后端学习'
+tags: ['Java']
+---
+
+Java IO 流的 40 多个类都是从如下 4 个抽象类基类中派生出来的。
+
+- `InputStream`/`Reader`: 所有的输入流的基类，前者是字节输入流，后者是字符输入流。
+- `OutputStream`/`Writer`: 所有输出流的基类，前者是字节输出流，后者是字符输出流。
+
+# InputStream
+
+`InputStream`用于从源头（通常是文件）读取数据（字节信息）到内存中，`java.io.InputStream`抽象类是所有字节输入流的父类。
+
+## FileInputStream
+
+`FileInputStream` 是一个比较常用的字节输入流对象，可直接指定文件路径，可以直接读取单字节数据，也可以读取至字节数组中。
+
+我们一般不会直接使用FileInputStream，而是配合一些装饰类来使用，如BufferedInputStream，DataInputStream，ObjectInputSream。
+
+BufferedInputStream 下面会详细说。
+
+## DataInputStream
+
+读取指定类型数据，不能单独使用，必须结合其它流。
+
+```java
+FileInputStream fileInputStream = new FileInputStream("input.txt");
+//必须将fileInputStream作为构造参数才能使用
+DataInputStream dataInputStream = new DataInputStream(fileInputStream);
+//可以读取任意具体的类型数据
+dataInputStream.readBoolean();
+dataInputStream.readInt();
+dataInputStream.readUTF();
+```
+
+## ObjectInputStream
+
+用于反序列化，ObjectOutputStream用于序列化。
+
+另外，用于序列化和反序列化的类必须实现 `Serializable` 接口，对象中如果有属性不想被序列化，使用 `transient` 修饰。
+
+```java
+ObjectInputStream input = new ObjectInputStream(new FileInputStream("object.data"));
+MyClass object = (MyClass) input.readObject();
+input.close();
+```
+
+# OutputStream
+
+和 Input 是对应的，就不细说了。
+
+# Reader
+
+`Reader`用于从源头（通常是文件）读取数据（字符信息）到内存中，`java.io.Reader`抽象类是所有字符输入流的父类。
+
+`Reader` 用于读取文本， `InputStream` 用于读取原始字节。
+
+**字符流是基于字节流的，通过 InputStreamReader 作为字节流转换为字符流的桥梁**，其子类 `FileReader` 是基于该基础上的封装，可以直接操作字符文件。
+
+实际上 字符流 就是在 字节流 的基础上进行针对字节的响应编解码。
+
+# Writer
+
+与输入流类似。
+
+# 字节缓冲流
+
+IO 操作是很消耗性能的，缓冲流将数据加载至缓冲区，一次性读取/写入多个字节，从而避免频繁的 IO 操作，提高流的传输效率。
+
+使用**装饰器模式**来增强 `InputStream` 和`OutputStream`子类对象的功能。
+
+```java
+// 新建一个 BufferedInputStream 对象
+BufferedInputStream bufferedInputStream = new BufferedInputStream
+                                            (new FileInputStream("input.txt"));
+```
+
+这个就相当于一次性把数据读到一个缓冲区（大小默认是8KB），减少系统调用的次数，除此之外，还实现了一些边界控制的逻辑，方便使用。如果是自己使用fis读取到一个数组的话，性能上可能接近一些，但是没有什么扩展功能，得自己造轮子。
+
+# 字符缓冲流
+
+都类似，也是维护缓冲数组，但是字符缓冲流维护的是 char[]，直接保存的字符。
+
+# 打印流
+
+`System.out` 实际是用于获取一个 `PrintStream` 对象，`print`方法实际调用的是 `PrintStream` 对象的 `write` 方法。
+
+`PrintStream` 属于字节打印流，与之对应的是 `PrintWriter` （字符打印流）。`PrintStream` 是 `OutputStream` 的子类，`PrintWriter` 是 `Writer` 的子类。
+
+打印的时候使用的是 字节流，而不是字符流。其实这个很好理解，字符流只是为了人类阅读方便，本质上还是二进制数据。计算机只认二进制01，也就是字节数据，字符只是根据一些编码规则翻译过来的。
+
+🌍 **世界是二进制的，字符只是我们给它起的名字。**
+
+# 随机访问流
+
+随机访问流指的是支持随意跳转到文件的任意位置进行读写的 `RandomAccessFile` 。
+
+`RandomAccessFile` 中有一个文件指针用来表示下一个将要被写入或者读取的**字节所处的位置（seek(n)，n是字节偏移，不是字符）**。我们可以通过 `RandomAccessFile` 的 `seek(long pos)` 方法来设置文件指针的偏移量（距文件开头 `pos` 个字节处）。如果想要获取文件指针当前的位置的话，可以使用 `getFilePointer()` 方法。
+
+```java
+RandomAccessFile randomAccessFile = new RandomAccessFile(new File("input.txt"), "rw");
+System.out.println("读取之前的偏移量：" + randomAccessFile.getFilePointer() + ",当前读取到的字符" + (char) randomAccessFile.read() + "，读取之后的偏移量：" + randomAccessFile.getFilePointer());
+// 指针当前偏移量为 6
+randomAccessFile.seek(6);
+System.out.println("读取之前的偏移量：" + randomAccessFile.getFilePointer() + ",当前读取到的字符" + (char) randomAccessFile.read() + "，读取之后的偏移量：" + randomAccessFile.getFilePointer());
+// 从偏移量 7 的位置开始往后写入字节数据
+randomAccessFile.write(new byte[]{'H', 'I', 'J', 'K'});
+// 指针当前偏移量为 0，回到起始位置
+randomAccessFile.seek(0);
+System.out.println("读取之前的偏移量：" + randomAccessFile.getFilePointer() + ",当前读取到的字符" + (char) randomAccessFile.read() + "，读取之后的偏移量：" + randomAccessFile.getFilePointer());
+```
+
+# IO设计模式
+
+这个看原文吧，重点在设计模式那一部分讲，你知道这里有一些例子即可。
+
+# IO模型
+
+UNIX 系统下， IO 模型一共有 5 种：**同步阻塞 I/O**、**同步非阻塞 I/O**、**I/O 多路复用**、**信号驱动 I/O** 和**异步 I/O**。
+
+当应用程序发起 I/O 调用后，会经历两个步骤：
+
+1.  内核等待 I/O 设备准备好数据。
+2.  内核将数据从内核空间拷贝到用户空间。
+
+Java中常见的IO模型有三种：BIO，NIO，AIO
+
+## BIO
+
+**同步阻塞IO模型。**
+
+这个挺好理解，就是用户程序进行系统调用之后，会一直阻塞直到内核把数据拷贝到用户空间。
+
+BIO无法应对高并发情况。
+
+## NIO（Non-Blocking/New IO）
+
+JDK4引入，对应java.nio包，应对高负载，高并发应用。
+
+BIO是同步阻塞模型，**还有一种模型叫同步非阻塞模型**。
+
+NIO 是基于 IO 多路复用实现的同步非阻塞 IO 变成模型。
+
+### 同步非阻塞模型
+
+**同步阻塞模型**就是调用了read()就一直等着。同步非阻塞，就是会返回一个结果，然后轮询。但是这个轮询未必是一直轮询，是程序可控的，你可以选择一段时间轮训一次，或者问完去干一些别的事再回来轮询，所以这个要比同步阻塞IO好一些。同步非阻塞模型就是 IO 设备->内核这个过程不等，但是从内核->用户空间这个过程还是阻塞读的。
+
+### I/O 多路复用
+
+操作系统提供的能力，一开始是select，这个所有操作系统都有。后面Linux有了epoll效率更高（只返回就绪的socket，select和pool是返回全部的socket）。macos和windows也有自己的类似实现。
+
+这个作用是对比传统网络编程，网络其实也是IO。
+
+如果不用多路复用，就要每个连接开启一个线程，导致线程数爆炸，频繁切换，效率低。
+
+现在是用一个线程管理成千上万个连接。数据准备就绪操作系统会通知应用程序，就可以处理相应的连接了。
+
+![image.png](/images/posts/后端学习-java-io/io-1.png)
+
+epoll告诉操作系统：帮我监听相应的socket。
+
+## AIO（Asynchronous I/O）
+
+AIO 是 NIO2，JDK7引入，NIO的改进版，异步IO模型。
+
+![image.png](/images/posts/后端学习-java-io/io-2.png)
+
+### NIO 和 AIO
+
+**NIO 是 I/O 领域的「拉模式」**：  
+“数据准备好了，你自己来拿。” → **你掌控节奏，但要多写一行** `**read()**`
+
+**AIO 是 I/O 领域的「推模式」**：  
+“数据我已经给你放 Buffer 里了，回调你处理。” → **系统全包办，但你要处理回调上下文**
+
+## NIO 讲解
+
+NIO相对于BIO的优势就是：BIO是在线程中尝试读取单个连接的数据，这样就势必导致每个连接都需要单独维护一个线程；而NIO是基于操作系统提供的多路复用，使用Selector监听多个连接发过来的数据，再统一处理（后面有可能会再开一些线程单独处理，但总体在时间上是错开的，不会线程爆炸的太厉害）。这一切的基础都在于：网络编程任务是IO密集型的，只是时不时发过来一些数据，没有必要时刻关注着它，浪费CPU资源。
+
+**BIO 是“人盯人”：每个连接配一个服务员，即使客人不点单也站着等。**  
+**NIO 是“呼叫系统”：一个服务员看所有桌的呼叫灯，哪桌亮了就去哪桌，其余时间休息或处理其他事。**
+
+而这一切之所以可行，是因为：
+
+1.  **网络通信本质是 I/O 密集型**（等待时间 >> 处理时间）
+2.  **操作系统提供了高效的多路复用机制**（epoll/kqueue）
+3.  **NIO 通过 Selector + 非阻塞 Channel + Buffer 将这一能力暴露给 Java 应用**
+
+🌟 **NIO 不是“更快地读数据”，而是“更聪明地等数据”。**
+
+### 核心组件
+
+NIO 主要包括以下三个核心组件：
+
+- **Buffer（缓冲区）**：NIO 读写数据都是通过缓冲区进行操作的。读操作的时候将 Channel 中的数据填充到 Buffer 中，而写操作时将 Buffer 中的数据写入到 Channel 中。
+- **Channel（通道）**：Channel 是一个双向的、可读可写的数据传输通道，NIO 通过 Channel 来实现数据的输入输出。通道是一个抽象的概念，它可以代表文件、套接字或者其他数据源之间的连接。
+- **Selector（选择器）**：允许一个线程处理多个 Channel，基于事件驱动的 I/O 多路复用模型。所有的 Channel 都可以注册到 Selector 上，由 Selector 来分配线程来处理事件。
+
+### Buffer
+
+NIO的读写都是对缓冲区的操作，定义了很多缓冲区。
+
+```java
+public abstract class Buffer {
+    // Invariants: mark <= position <= limit <= capacity
+    private int mark = -1;
+    private int position = 0; // 下一个可以被读写的位置，模式切换会归0，从头开始读写
+    private int limit; // 读写边界，写一般为capacity，读为现在有多少数据。
+    private int capacity;
+}
+// 0 <= mark <= position <= limit <= capacity
+```
+
+![image.png](/images/posts/后端学习-java-io/io-3.png)
+
+### Channel
+
+Channel 是一个通道，它建立了与数据源（如文件、网络套接字等）之间的连接。我们可以利用它来读取和写入数据，就像打开了一条自来水管，让数据在 Channel 中自由流动。Channel是全双工的。
+
+![image.png](/images/posts/后端学习-java-io/io-4.png)
+
+### Selector
+
+主要运作原理是：通过 Selector 注册通道的事件，Selector 会不断地轮询注册在其上的 Channel。当事件发生时，比如：某个 Channel 上面有新的 TCP 连接接入、读和写事件，这个 Channel 就处于就绪状态，会被 Selector 轮询出来。
+
+Selector 可以监听以下四种事件类型：
+
+1.  `SelectionKey.OP_ACCEPT`：表示通道接受连接的事件，这通常用于 `ServerSocketChannel`。
+2.  `SelectionKey.OP_CONNECT`：表示通道完成连接的事件，这通常用于 `SocketChannel`。
+3.  `SelectionKey.OP_READ`：表示通道准备好进行读取的事件，即有数据可读。
+4.  `SelectionKey.OP_WRITE`：表示通道准备好进行写入的事件，即可以写入数据。
+
+```java
+Set<SelectionKey> selectedKeys = selector.selectedKeys();
+Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
+while (keyIterator.hasNext()) {
+    SelectionKey key = keyIterator.next();
+    if (key != null) {
+        if (key.isAcceptable()) {
+            // ServerSocketChannel 接收了一个新连接
+        } else if (key.isConnectable()) {
+            // 表示一个新连接建立
+        } else if (key.isReadable()) {
+            // Channel 有准备好的数据，可以读取
+        } else if (key.isWritable()) {
+            // Channel 有空闲的 Buffer，可以写入数据
+        }
+    }
+    keyIterator.remove();
+}
+```
+
+### NIO 零拷贝（了解）
+
+就是在数据拷贝的过程中，让CPU少干活，让DMA（硬件）多干活。
+
+这都是操作系统实现的东西，让DMA实现数据从 磁盘->PageCache->网卡 的拷贝过程。
+
+Java实现：
+
+```java
+// 1. FileChannel.transferTo()
+FileChannel fileChannel = FileChannel.open(Paths.get("image.jpg"));
+SocketChannel socketChannel = ...;
+
+// 零拷贝！
+fileChannel.transferTo(0, fileChannel.size(), socketChannel);
+
+// 2.MappedByteBuffer
+FileChannel fc = new RandomAccessFile("data.bin", "rw").getChannel();
+MappedByteBuffer buffer = fc.map(FileChannel.MapMode.READ_WRITE, 0, fc.size());
+
+// 直接操作 buffer，像操作内存一样
+buffer.put(0, (byte) 100);
+```
+
+### 补充
+
+如果我们需要使用 NIO 构建网络程序的话，**不建议直接使用原生 NIO**，编程复杂且功能性太弱，推荐使用一些成熟的基于 NIO 的网络编程框架比如 **Netty**。Netty 在 NIO 的基础上进行了一些优化和扩展比如支持多种协议、支持 SSL/TLS 等等。
+
+​

@@ -1,0 +1,197 @@
+---
+title: '类加载器'
+date: '2023-07-15'
+updated: '2023-07-15'
+description: '类加载器在java8-9经过了一次大的改动，下面的内容首先基于java8，之后再描述java9. image.pngassets/类加载器-1.png - string什么的是启动加载器加载的，这个是jvm提供的。 - 我们写的程序和一些三'
+published: true
+category: '后端学习'
+tags: ['JVM']
+---
+
+类加载器在Java8->9经过了一次大的改动，下面的内容首先基于Java8，之后再描述Java9.
+
+![image.png](/images/posts/后端学习-jvm-类加载器/类加载器-1.png)
+
+- String什么的是启动加载器加载的，这个是JVM提供的。
+- 我们写的程序和一些三方包一般是应用程序类加载器。
+- 扩展类加载器就是加载一些通用但是没那么重要的东西。
+
+- 默认加载Java安装目录中/jre/lib/ext下的类文件
+
+简单来说，**类加载器的主要作用就是动态加载 Java 类的字节码（** `**.class**` **文件）到 JVM 中（在内存中生成一个代表该类的** `**Class**` **对象）。** 字节码可以是 Java 源程序（`.java`文件）经过 `javac` 编译得来，也可以是通过工具动态生成或者通过网络下载得来。
+
+大部分类在具体用到的时候才会加载，是懒加载的。
+
+对于已经加载的类会被放在 `ClassLoader` 中。在类加载的时候，系统会首先判断当前类是否被加载过。已经被加载的类会直接返回，否则才会尝试加载。也就是说，对于一个类加载器来说，相同二进制名称的类只会被加载一次。
+
+```java
+public abstract class ClassLoader {
+  ...
+  private final ClassLoader parent;
+  // 由这个类加载器加载的类。
+  private final Vector<Class<?>> classes = new Vector<>();
+  // 由VM调用，用此类加载器记录每个已加载类。
+  void addClass(Class<?> c) {
+        classes.addElement(c);
+   }
+  ...
+}
+```
+
+BootstrapClassLoader 是JVM自身的一部分，c++实现的，Java里面没有对应的类，所以获取类加载器的父加载器，如果是null的话，就是启动类加载器。
+
+# 双亲委派机制
+
+**双亲委派机制：**当一个类加载器接收到加载类的任务时，会先自底向上查找是否加载过，如果加载过，则结束。否则，自顶向下进行加载（检查要加载的类是否在自己的加载目录中，不在则向下传递）。
+
+其实双亲就是父母那一辈，是单亲，不是有两个父类，是从英文 parent 翻译过来的。
+
+- 如果一个类在三个加载器的加载目录中，由双亲委派机制，应由启动类加载器加载。
+- Java核心类如String不可覆盖，因为启动加载器会预先加载这些类，即使在本地写了java.lang.String，在双亲委派机制向上查找阶段，也会因类已加载而返回JDK的String类。
+
+![image.png](/images/posts/后端学习-jvm-类加载器/类加载器-2.png)
+
+## 双亲委派机制的好处
+
+通过委派父加载器加载类的方式，实现了两个关键的安全目标：
+
+1.  避免类的重复加载
+
+1.  补充：java 中判断两个类是不是相同除了看全限定符是否一样，也要看加载该类的类加载器是否一样。
+
+1.  防止核心API被篡改
+
+1.  即使绕过双亲委派机制，在ClassLoader类中的preDefineClass方法中，还会判断包名是不是.java开头，从而保护java的核心类库。
+
+## 为什么要打破双亲委派机制
+
+以场景来说：
+
+### 父加载器无法加载子应用需要的类
+
+这个地方要先明确几个前景知识：
+
+**类加载器的“调用者”绑定原则：**也就是说**在类 A 里面加载 类 B，用的是加载A的那个加载器加载B。**
+
+所以如果是在一些核心类库中加载三方jar包，就没法加载，因为核心类库是启动类加载器加载的，双亲委派机制没法向下委派。只能打破双亲委派机制（用 线程上下文加载器即可，默认为应用程序类加载器）。
+
+我们平时自己写的类都是应用程序类加载器加载的，是可以正常使用双亲委派机制的，比如说我们使用String就会由启动类加载器加载String。
+
+例子是JDBC：
+
+DriverManager是JDK核心类，但MySQL驱动JAR是应用自己提供的。
+
+### 热部署/模块隔离/插件化
+
+同一个类的不同版本共存，或动态替换类。双亲委派机制，一个类只能加载一次，无法实现。
+
+如：Tomcat
+
+一个Tomcat容器运行多个web应用，每个应用都可能依赖不同版本的Spring
+
+解决：每个Web有自己的ClassLoader，优先加载自己的类
+
+### SPI
+
+- 接口由 JDK 定义（父加载器加载）
+- 实现由第三方提供（子加载器加载）
+
+这个和场景1也是一样的道理，接口是核心类，核心类里面没法直接加载三方的jar。
+
+SPI 实际上就是 Java 定义的一套规范和机制，和自动装配类似，JDK 或者 xx 框架（Java 框架，自定义的）定义了一个接口，并且 JDK 或者 xx 框架会自动加载某特定配置文件，加载到实现了这些接口的类就会将其作为对应接口的实现类。实现”框架（JDK 或其他的什么 Java 框架）定义接口，用户提供实现。“
+
+```java
+// 在 framework 模块中
+import java.util.ServiceLoader;
+
+public class LoggerManager {
+    public static void main(String[] args) {
+        ServiceLoader<LogService> loader = ServiceLoader.load(LogService.class);
+
+        for (LogService logService : loader) {
+            logService.log("Hello SPI!");
+        }
+    }
+}
+```
+
+JDK 内部也会定义一些接口，通过 ServiceLoader 来加载对应的三方实现，比如 java.sql.Driver。
+
+自己定义的或者其它的三方框架，也可以自己定义接口，让框架使用者来按照规则提供实现。
+
+## 如何打破双亲委派机制
+
+1.  **重写super.loadClass()**
+
+1.  可能破坏核心类安全性
+1.  非不要不重写 loadClass，推荐重写 findClass
+
+1.  **线程上下文类加载器**
+
+1.  Thread.currentThread().getContextClassLoader();
+1.  每个线程都有这个加载器，默认是应用程序加载器，可以自己设置，能用来作为加载三方jar包的桥梁。
+
+# 自定义类加载器
+
+继承抽象类ClassLoader，并重写loadClass方法（双亲委派机制的逻辑就在应用加载器的loadClass方法中）。
+
+自定义类加载器默认作为应用类加载器的子类，无法加载java.开头的类包。
+
+- `protected Class loadClass(String name, boolean resolve)`：加载指定二进制名称的类，实现了双亲委派机制 。`name` 为类的二进制名称，`resolve` 如果为 true，在加载时调用 `resolveClass(Class&lt;?> c)` 方法解析该类。
+- `protected Class findClass(String name)`：根据类的二进制名称来查找类，默认实现是空方法。
+
+注意点：
+
+如果我们不想打破双亲委派模型，就重写 `ClassLoader` 类中的 `findClass()` 方法即可，无法被父类加载器加载的类最终会通过这个方法被加载。但是，如果想打破双亲委派模型则需要重写 `loadClass()` 方法。
+
+# JDK9中的类加载器
+
+- 启动类加载器使用Java编写，Java中的BootClassLoader继承自BuiltinClassLoader实现从模块中找到要记在的字节码资源文件。
+- 扩展类加载器被替换为平台类加载器，但是本身是为了与老版本的设计方案兼容，没有特殊的逻辑。
+
+# 类加载过程
+
+![image.png](/images/posts/后端学习-jvm-类加载器/类加载器-3.png)
+
+类的生命周期去掉 使用 和 卸载部分就是类的加载过程。
+
+整体可以概括为 加载->连接->初始化； 连接阶段又可以分为 验证->准备->解析。
+
+```latex
+.class 文件
+    │
+    ▼
+[加载] → 读取字节码 → 创建 Class 对象
+    │
+    ▼
+[链接]
+  ├─ 验证：确保安全合法
+  ├─ 准备：static 变量赋零值（final static 常量除外）
+  └─ 解析：符号引用 → 直接引用
+    │
+    ▼
+[初始化] → 执行 <clinit>()（static 赋值 + static 块）
+    │
+    ▼
+Class 对象 ready，可被程序使用
+```
+
+加载 ≠ 初始化，**只有真正使用到类时（主动使用），才会触发初始化！**
+
+以下 6 种情况会触发 **初始化**（从而触发前面的加载和链接）：
+
+1.  创建类的实例（`new`、反射、反序列化）
+2.  访问类的**静态非常量字段**（`static final` 基本类型/字符串常量除外）
+3.  调用类的**静态方法**
+4.  使用反射（如 `Class.forName("...")`）
+5.  初始化一个类的子类（会先初始化父类）
+6.  JVM 启动时指定的主类（包含 `main()` 方法的类）
+
+❌ 以下**不会触发初始化**（被动使用）：
+
+- 访问 `static final` 基本类型/字符串常量（编译期已确定）
+- 通过子类引用父类的静态字段（只初始化父类）
+- 定义数组：`MyClass[] arr = new MyClass[10];`
+- 类加载器的 `loadClass()` 方法（只加载不初始化）
+
+​

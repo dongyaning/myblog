@@ -1,0 +1,45 @@
+---
+title: '排序'
+date: '2025-05-23'
+updated: '2025-05-23'
+description: '快速排序 cpp // 快速排序函数（hoare 分区方案实现） void quicksort1vector<int& nums, int l, int r { // 1. 递归终止条件：当子数组长度为1或空时，无需排序 if l = r '
+published: true
+category: '前端学习'
+tags: ['算法刷题']
+---
+
+快速排序
+
+```cpp
+// 快速排序函数（Hoare 分区方案实现）
+void quickSort1(vector<int>& nums, int l, int r) {
+    // 1. 递归终止条件：当子数组长度为1或空时，无需排序
+    if (l >= r) return;
+
+    // 2. 初始化分区参数：
+    // - i 初始在左边界左侧（l-1）
+    // - j 初始在右边界右侧（r+1）
+    // - 基准值 x 选中间元素（避免极端情况如全排序数组导致最坏时间复杂度）
+    int i = l - 1, j = r + 1;
+    int x = nums[(l + r) >> 1]; // 位运算代替 (l + r) / 2，等价且更高效
+
+    // 3. Hoare 分区循环：双指针从两端向中间移动
+    while (i < j) {
+        // 3.1 移动左指针 i：跳过所有小于 x 的元素，直到找到 >=x 的元素
+        do i++; while (nums[i] < x);
+
+        // 3.2 移动右指针 j：跳过所有大于 x 的元素，直到找到 <=x 的元素
+        do j--; while (nums[j] > x);
+
+        // 3.3 如果指针未交错，交换左右指针的元素（确保左边 <=x，右边 >=x）
+        if (i < j) swap(nums[i], nums[j]);
+    }
+
+    // 4. 递归排序左右子数组：
+    // - 分区点为 j（因为当 i >= j 时，j 是左半部分的最右端）
+    // - 左子数组：[l, j]（所有元素 <=x）
+    // - 右子数组：[j+1, r]（所有元素 >=x）
+    quickSort1(nums, l, j);
+    quickSort1(nums, j + 1, r);
+}
+```

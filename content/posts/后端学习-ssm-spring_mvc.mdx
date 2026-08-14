@@ -1,0 +1,225 @@
+---
+title: 'Spring_MVC'
+date: '2024-03-16'
+updated: '2024-03-16'
+description: '控制层框架 m：model，模型，用于存储数据 v：view，视图，用于展示，如jsp c：controller，控制器，用于书写业务逻辑 springmvc 可以看做一种设计模式，将 web 请求处理逻辑分为上述三层。（在前后端分离开发架'
+published: true
+category: '后端学习'
+tags: ['ssm']
+---
+
+控制层框架
+
+M：Model，模型，用于存储数据
+
+V：View，视图，用于展示，如jsp
+
+C：Controller，控制器，用于书写业务逻辑
+
+SpringMVC 可以看做一种设计模式，将 Web 请求处理逻辑分为上述三层。（在前后端分离开发架构中，View 层已经不在服务端实现了，服务端只返回 Model，前端从 Model 取出数据，并渲染页面）。
+
+# Spring MVC 工作原理
+
+## 核心组件
+
+- `**DispatcherServlet**`：**核心的中央处理器**，负责接收请求、分发，并给予客户端响应。
+- `**HandlerMapping**`：**处理器映射器**，根据 URL 去匹配查找能处理的 `Handler（就是 Controller）` ，并会将请求涉及到的拦截器和 `Handler` 一起封装。
+- `**HandlerAdapter**`：**处理器适配器**，根据 `HandlerMapping` 找到的 `Handler` ，适配执行对应的 `Handler`；
+- `**Handler**`：**请求处理器**，处理实际请求的处理器。
+- `**ViewResolver**`：**视图解析器**，根据 `Handler` 返回的逻辑视图 / 视图，解析并渲染真正的视图，并传递给 `DispatcherServlet` 响应客户端
+
+![image.png](/images/posts/后端学习-ssm-spring_mvc/spring_mvc-1.png)
+
+- 客户端（浏览器）发送请求， `DispatcherServlet`拦截请求。
+- `DispatcherServlet` 根据请求信息调用 `HandlerMapping` 。`HandlerMapping` 根据 URL 去匹配查找能处理的 `Handler`（也就是我们平常说的 `Controller` 控制器） ，并会将请求涉及到的拦截器和 `Handler` 一起封装。
+- `DispatcherServlet` 调用 `HandlerAdapter`适配器执行 `Handler` 。
+- `Handler` 完成对用户请求的处理后，会返回一个 `ModelAndView` 对象给`DispatcherServlet`，`ModelAndView` 顾名思义，包含了数据模型以及相应的视图的信息。`Model` 是返回的数据对象，`View` 是个逻辑上的 `View`。
+- `ViewResolver` 会根据逻辑 `View` 查找实际的 `View`。
+- `DispaterServlet` 把返回的 `Model` 传给 `View`（视图渲染）。
+- 把 `View` 返回给请求者（浏览器）
+
+上面说过，**前后端分离架构中，服务端只返回 Model，不再返回具体的视图，通常以 JSON 形式返回纯数据**。
+
+要做到这一点：
+
+- 使用 `@RestController` 注解代替传统的 `@Controller` 注解，这样所有方法默认会返回 JSON 格式的数据，而不是试图解析视图。
+- 如果你使用的是 `@Controller`，可以结合 `@ResponseBody` 注解来返回 JSON。
+
+# 参数相关
+
+```java
+@Controller
+public class HelloController {
+
+    @GetMapping("/hello") // 或@RequestMapping()
+    @ResponseBody
+    // 这种就是get里面的query参数，直接传，名字不一样的话，通过value指定
+    public String sayHello(@RequestParam(value = "name", defaultValue = "World") String name) {
+        return name;
+    }
+
+    // 这个是用实体类接收，需要属性名和传过来的参数名一样
+    @GetMapping("/userMsg")
+    @ResponseBody
+    public String userMsg(User user) {
+        System.out.println(user);
+        return user.toString();
+    }
+
+    // 接收Json格式，Java本身不支持Json，需要引入依赖
+    // 加上@RequestBody注解
+    // 同时@EnableWebMvc注解可以把Json转换器加入（还有秘书和经理）
+    @PostMapping("/json")
+    @ResponseBody
+    public String jsonMsg(@RequestBody User user) {
+        System.out.println(user);
+        return user.toString();
+    }
+
+    // Cookie接收：参数上注解@CookieValue("Cookie名")
+    // 请求头接收：参数上注解@RequestHeader("属性名")
+    // 原生api获取：handler(HttpServerletRequest, response, session)
+    //           ServletContext -> ioc -> @Autowired
+}
+```
+
+## 返回相关
+
+```java
+@Controller
+public class ResponseController {
+    // 转发
+    // 1.不能写@ResponseBody注解
+    // 2.handler返回值为String类型
+    // 3.返回值前面"forward:"
+    @RequestMapping("/forward")
+    public String forward() {
+        return "forward:/hello"; // 前面是固定的，只能是项目内转发
+    }
+
+    // 重定向
+    // 1.不能写@ResponseBody注解
+    // 2.handler返回值为String类型
+    // 3.返回值前面"redirect:"
+    @RequestMapping("/redirect")
+    public String redirect() {
+        return "redirect:/hello"; // 前面是固定的
+        // return "redirect:https://baidu.com" // 项目外地址
+    }
+
+    // 返回json数据
+    // 注意要加上@ResponseBody注解
+    // 这个注解的作用就是直接将handler的返回值经过转化处理直接放到http的返回体里面，不经过视图
+    @RequestMapping("json")
+    @ResponseBody
+    public User user() {
+        User user = new User();
+        user.setName("xiaoming");
+        user.setAge(18);
+        user.setGender("male");
+        return user;
+    }
+
+    // 静态资源
+    // WebMvc的配置类中加入如下内容：
+    // 开启静态资源查找，如果没有handler，就去找静态资源
+    @Override
+    public void configureDefaultServletHandling(DefaultServletHandlerConfigurer configurer) {
+        configurer.enable();
+    }
+}
+```
+
+## Restful API
+
+### Restful API 解决什么问题
+
+主要解决http使用中的三个问题（HTTP协议的最标准使用方式）：
+
+1.如何设计url
+
+2.使用什么请求方式
+
+3.参数传递使用param/json/path方式
+
+### 风格特点
+
+1.每一个URI代表一种资源，是**名词**。
+
+2.使用GET，POST，PUT，DELETE，表示增删改查四种（POST是增，PUT是改）。
+
+3.资源的表现形式是XML/JSON。
+
+4.由于无状态，因此每个请求都应包含请求目的的必须信息。
+
+如：
+
+传统：/CRUD/saveEmp 不要动作
+
+Restful API：/CRUD/emp 请求方式POST
+
+### 参数传递
+
+**对于GET和DELETE，没有请求体的情况：**
+
+如果参数是id这种，即查询/删除单一资源，就使用路径传参，如：/user/1
+
+如果是多个资源，如分页、范围查询等，就使用参数传参，如：/user?pageIndex=1&pageSize=10
+
+**对于POST和PUT，有请求体的：**
+
+就使用请求体传JSON即可。
+
+## 全局异常处理
+
+1.常规编程式处理
+
+2.声明式统一处理，推荐
+
+```java
+@ControllerAdvice
+// @RestControllerAdvice  相当于上面的 + @ResponseBody
+public class GlobalExceptionHandler {
+
+    @ExceptionHandler(Exception.class) // 可以精准匹配或查找父异常
+    public Object ExceptionHandler(Exception e) {
+        // 自定义异常处理
+        return "error";
+    }
+}
+```
+
+这种方式会给所有或者指定的 `Controller` 织入异常处理的逻辑（AOP），当 `Controller` 中的方法抛出异常的时候，由被`@ExceptionHandler` 注解修饰的方法进行处理。
+
+## 拦截器
+
+```java
+public class MyInterceptor implements HandlerInterceptor {
+
+    // 返回true放行，false拦截
+    @Override
+    public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) throws Exception {
+        return HandlerInterceptor.super.preHandle(request, response, handler);
+    }
+
+    @Override
+    public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) throws Exception {
+        HandlerInterceptor.super.postHandle(request, response, handler, modelAndView);
+    }
+
+    @Override
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) throws Exception {
+        HandlerInterceptor.super.afterCompletion(request, response, handler, ex);
+    }
+}
+```
+
+在配置类中注册拦截器：
+
+```java
+@Override
+public void addInterceptors(InterceptorRegistry registry) {
+    registry.addInterceptor(new MyInterceptor()); // 拦截全部请求
+    registry.addInterceptor(new MyInterceptor()).addPathPatterns("/user/**");
+}
+```

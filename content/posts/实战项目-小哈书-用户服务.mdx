@@ -1,0 +1,302 @@
+---
+title: '用户服务'
+date: '2023-01-09'
+updated: '2023-01-09'
+description: '包含：druid、mybatis配置，连接池，openfeign服务间调用 关于druid链接池和mybatis的配置。 像这些配置，一般就是：导入依赖、写配置文件或者是创建配置类。 依赖： xml <-- mybatis -- <depe'
+published: true
+category: '后端学习'
+tags: ['实战项目', '小哈书']
+---
+
+包含：Druid、Mybatis配置，连接池，OpenFeign服务间调用
+
+关于Druid链接池和Mybatis的配置。
+
+像这些配置，一般就是：导入依赖、写配置文件或者是创建配置类。
+
+依赖：
+
+```xml
+<!-- Mybatis -->
+<dependency>
+    <groupId>org.mybatis.spring.boot</groupId>
+    <artifactId>mybatis-spring-boot-starter</artifactId>
+</dependency>
+
+<!-- MySQL 驱动 -->
+<dependency>
+    <groupId>mysql</groupId>
+    <artifactId>mysql-connector-java</artifactId>
+</dependency>
+
+<!-- Druid 数据库连接池 -->
+<dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>druid-spring-boot-3-starter</artifactId>
+</dependency>
+```
+
+SpringBoot配置：
+
+```yaml
+mybatis:
+  # MyBatis xml 配置文件路径
+  mapper-locations: classpath:/mapper/**/*.xml
+```
+
+```yaml
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver # 指定数据库驱动类
+    # 数据库连接信息
+    url: jdbc:mysql://127.0.0.1:3306/xiaohashu?useUnicode=true&characterEncoding=utf-8&autoReconnect=true&useSSL=false&serverTimezone=Asia/Shanghai
+    username: root # 数据库用户名
+    password: 123456 # 数据库密码
+    type: com.alibaba.druid.pool.DruidDataSource
+    druid: # Druid 连接池
+      initial-size: 5 # 初始化连接池大小
+      min-idle: 5 # 最小连接池数量
+      max-active: 20 # 最大连接池数量
+      max-wait: 60000 # 连接时最大等待时间（单位：毫秒）
+      test-while-idle: true
+      time-between-eviction-runs-millis: 60000 # 配置多久进行一次检测，检测需要关闭的连接（单位：毫秒）
+      min-evictable-idle-time-millis: 300000 # 配置一个连接在连接池中最小生存的时间（单位：毫秒）
+      max-evictable-idle-time-millis: 900000 # 配置一个连接在连接池中最大生存的时间（单位：毫秒）
+      validation-query: SELECT 1 FROM DUAL # 配置测试连接是否可用的查询 sql
+      #      connectionProperties: config.decrypt=true;config.decrypt.key=MFwwDQYJKoZIhvcNAQEBBQADSwAwSAJBAIaJmhsfN14oM+bghiOfARP6YgIiArekviyAOEa9Dt8spf4W38kSJShGs0NkzT3btqJB0O2o0X/yfVE8kqme1jMCAwEAAQ==
+      test-on-borrow: false
+      test-on-return: false
+      pool-prepared-statements: false
+      web-stat-filter:
+        enabled: true
+      stat-view-servlet:
+        enabled: true
+        url-pattern: /druid/* # 配置监控后台访问路径
+        login-username: admin # 配置监控后台登录的用户名、密码
+        login-password: admin
+      filter:
+        config:
+          enabled: true
+        stat:
+          enabled: true
+          log-slow-sql: true # 开启慢 sql 记录
+          slow-sql-millis: 2000 # 若执行耗时大于 2s，则视为慢 sql
+          merge-sql: true
+        wall: # 防火墙
+          config:
+            multi-statement-allow: true
+
+logging:
+  level:
+    com.quanxiaoha.xiaohashu.user.biz.domain.mapper: debug
+```
+
+同时，Mybatis还要在启动类上添加@MapperScan注解，value为接口mapper文件。
+
+下面，再配置mybatis-generator，
+
+也是先依赖：
+
+```xml
+<!-- 代码生成器 -->
+<plugin>
+    <groupId>org.mybatis.generator</groupId>
+    <artifactId>mybatis-generator-maven-plugin</artifactId>
+</plugin>
+```
+
+配置文件：
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE generatorConfiguration
+        PUBLIC "-//mybatis.org//DTD MyBatis Generator Configuration 1.0//EN"
+        "http://mybatis.org/dtd/mybatis-generator-config_1_0.dtd">
+<generatorConfiguration>
+    <context id="mysqlTables" targetRuntime="MyBatis3" defaultModelType="flat">
+
+        <!-- 自动检查关键字，为关键字增加反引号，如：`type` -->
+        <property name="autoDelimitKeywords" value="true"/>
+        <property name="beginningDelimiter" value="`"/>
+        <property name="endingDelimiter" value="`"/>
+        <!-- 指定生成的 Java 文件编码 -->
+        <property name="javaFileEncoding" value="UTF-8"/>
+
+        <!-- 对生成的注释进行控制 -->
+        <commentGenerator>
+            <!-- 由于此插件生成的注释不太美观，这里设置不生成任何注释 -->
+            <property name="suppressAllComments" value="true"/>
+        </commentGenerator>
+
+        <!-- 数据库链接 -->
+        <jdbcConnection driverClass="com.mysql.cj.jdbc.Driver"
+                        connectionURL="jdbc:mysql://127.0.0.1:3306/xiaohashu"
+                        userId="root"
+                        password="123456">
+            <!-- 解决多个重名的表生成表结构不一致问题 -->
+            <property name="nullCatalogMeansCurrent" value="true"/>
+        </jdbcConnection>
+
+        <!-- 不强制将所有的数值类型映射为 Java 的 BigDecimal 类型 -->
+        <javaTypeResolver>
+            <property name="forceBigDecimals" value="false"/>
+        </javaTypeResolver>
+
+        <!-- DO 实体类存放路径 -->
+        <javaModelGenerator targetPackage="com.quanxiaoha.xiaohashu.user.biz.domain.dataobject"
+                            targetProject="src/main/java"/>
+
+        <!-- Mapper xml 文件存放路径-->
+        <sqlMapGenerator targetPackage="mapper"
+                         targetProject="src/main/resources"/>
+
+        <!-- Mapper 接口存放路径 -->
+        <javaClientGenerator type="XMLMAPPER" targetPackage="com.quanxiaoha.xiaohashu.user.biz.domain.mapper"
+                             targetProject="src/main/java"/>
+
+        <!-- 需要生成的表-实体类 -->
+        <table tableName="t_user" domainObjectName="UserDO"
+               enableCountByExample="false"
+               enableUpdateByExample="false"
+               enableDeleteByExample="false"
+               enableSelectByExample="false"
+               selectByExampleQueryId="false"/>
+    </context>
+</generatorConfiguration>
+```
+
+右边插件直接生成即可。
+
+​
+
+这里再补一下数据库连接池吧。
+
+首先，为什么需要连接池？
+
+如果没有连接池，每次请求执行一次SQL，都要建立连接，查完再关闭，非常耗时。
+
+| **问题**          | **说明**                                                           |
+| ----------------- | ------------------------------------------------------------------ |
+| 🐢 **性能极差**   | 建立 TCP 连接 + 认证登录 ≈ 10~100ms，远高于 SQL 执行时间（1~10ms） |
+| 🔥 **资源浪费**   | 高并发时频繁创建/销毁连接，CPU、内存飙升                           |
+| 💥 **连接数爆炸** | 数据库最大连接数有限（如 MySQL 默认 151），容易被打满              |
+| 📉 **响应延迟高** | 用户等待时间变长，系统吞吐量下降                                   |
+
+数据库连接池核心思想：提前创建一批连接，放入“池子”，用时借，用完还，不销毁。
+
+![image.png](/images/posts/实战项目-小哈书-用户服务/用户服务-1.png)
+
+连接池工作流程：
+
+1.初始阶段
+
+- 连接池根据配置（如 `initialSize=5`）**预先创建 5 个连接**
+- 每个连接都处于“空闲”状态，等待被借用
+
+2.借用连接
+
+- 池子检查是否有空闲连接
+
+- 有 → 返回一个空闲连接（**毫秒级**）
+- 无且未达上限 → 创建新连接
+- 无且已达上限 → 等待或抛异常
+
+3.使用连接
+
+- 执行SQL
+
+4.归还连接
+
+- 连接池拦截 `close()` 调用
+- 将连接状态改为“空闲”，放回池中
+- **物理连接未断开**，可复用
+
+**Druid 不只是单车池，还是个“智能调度中心”**，能监控每辆车的位置、速度、故障，甚至防偷盗。
+
+因为对象服务里面像是修改用户信息里面，需要上传头像和背景图片啥的，需要用到oss对象存储服务，也就涉及到服务间调用了。
+
+**OpenFeign** 是 Spring Cloud 生态中用于实现 **声明式、面向接口的微服务间调用** 的核心组件。
+
+**OpenFeign = 声明式 REST 客户端 + 动态代理 + 负载均衡 + 编解码**
+
+它的目标是：**让你像写本地接口一样调用远程服务**。
+
+理解OpenFeign有点难度，需要对Spring Cloud和Spring Cloud Alibaba有一个整体认识。
+
+先看一下怎么用的：
+
+1.客户端（发起HTTP请求的模块）
+
+```xml
+<!-- OpenFeign -->
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-openfeign</artifactId>
+</dependency>
+```
+
+openfeign不属于ali体系，是spring cloud原生提供的。把这个组件引进来，就可以在api模块声明Feign客户端了。
+
+```java
+@FeignClient(name = ApiConstants.SERVICE_NAME, configuration = FeignFormConfig.class)
+public interface FileFeignApi {
+    String PREFIX = "/file";
+    /**
+     * 文件上传
+     *
+     * @param file
+     * @return
+     */
+    @PostMapping(value = PREFIX + "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    Response<?> uploadFile(@RequestPart(value = "file") MultipartFile file);
+}
+```
+
+其中：
+
+- @FeignClient就是声明客户端
+- name就是指的nacos里面的那个要访问的服务名，feign会访问nacos，获取对应的ip和端口
+- 下面的file/upload就是访问的对应服务的接口地址
+
+支持表单请求还要配置类：
+
+```java
+@Configuration
+public class FeignFormConfig {
+
+    @Bean
+    public Encoder feignFormEncoder() {
+        return new SpringFormEncoder();
+    }
+}
+```
+
+2.调用者
+
+在需要调用的地方，引入api模块
+
+```xml
+<dependency>
+    <groupId>com.quanxiaoha</groupId>
+    <artifactId>xiaohashu-oss-api</artifactId>
+</dependency>
+```
+
+然后在启动类加上注解：
+
+```java
+@EnableFeignClients(basePackages = "com.quanxiaoha.xiaohashu")
+```
+
+需要的地方注入即可：
+
+```java
+@Resource
+private FileFeignApi fileFeignApi;
+```
+
+![image.png](/images/posts/实战项目-小哈书-用户服务/用户服务-2.png)
+
+关于Spring Cloud和Spring Cloud Alibaba，可以认为SC是提供了一套规范，一套接口和一套默认实现，但是这套默认实现是可插拔的，类似于策略模式，预定义了一套策略。SCA定义了另一套策略，结合Sring boot的选择性自动装配，将Ali的生态集成进去。
+
+​

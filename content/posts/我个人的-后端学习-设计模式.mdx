@@ -1,0 +1,1634 @@
+---
+title: '设计模式'
+date: '2022-09-26'
+updated: '2022-09-26'
+description: '设计模式是基于面向对象程序设计框架的。 设计模式的设计，是为了使程序在如下方面做得更好： - 代码重用性。相同功能的代码，不用多次编写。 - 可读性。便于其他人理解。 - 可扩展性（可维护性）。便于增加新的功能。 - 可靠性。增加新功能后，'
+published: true
+category: '后端学习'
+tags: []
+---
+
+设计模式是基于面向对象程序设计框架的。
+
+设计模式的设计，是为了使程序在如下方面做得更好：
+
+- 代码重用性。相同功能的代码，不用多次编写。
+- 可读性。便于其他人理解。
+- 可扩展性（可维护性）。便于增加新的功能。
+- 可靠性。增加新功能后，不影响原功能。
+- 高内聚、低耦合。
+
+# 设计模式的七大原则
+
+- **单一职责原则**
+
+- 一个方法做一件事
+- 比如交通工具类，里面有个run方法，海陆空是不能共用的，所以要分开，做到单一方法单一职责。当然，这个级别不一定是方法，类也要尽量遵守单一职责。
+- 单一职责原则可以降低变更风险，让改动范围尽可能地小。
+
+- **接口隔离原则**
+
+- 即应减少不需要的接口（实际上方法维度）的实现，也就是说实验的接口的方法尽量都是自己用得到的。
+- 这就要求在设计接口时，粒度要细，接口不要太大。
+
+- **依赖倒置原则**
+
+- 高层模块不应该依赖低层模块，二者都应依赖其抽象。也就是尽量依赖接口。
+
+- 其中，高层模块指负责业务逻辑、流程控制的决策层。低层模块指负责具体实现的模块的执行层。
+- 比如在订单层仅依赖接口，支付层提供具体支付方式实现（微信支付、支付宝支付）。
+
+- 抽象不应该依赖于细节，细节应该依赖于抽象。
+- 核心就是：面向抽象编程，而非具体实现。
+- 所谓依赖实际上就是一个类中的成员变量或方法参数需要用到别的类。依赖关系传递的方式有三种：
+
+- 接口传递
+- 构造方法传递
+- setter方法传递
+
+- **里氏替换原则**
+
+- 子类必须完全遵守父类的“契约”（包括方法的参数、返回值、异常、行为逻辑）。
+- 用子类对象替换父类对象后，程序的功能、正确性、预期行为不能被破坏（子类不能缩小父类的能力，也不能修改父类的核心行为）。
+- 可以类比为：“如果说‘所有鸟类都会飞’是父类的契约，那么‘鸵鸟’就不能作为‘鸟类’的子类 —— 因为鸵鸟不会飞，用鸵鸟替换鸟类后，‘让鸟类飞’的程序逻辑会失效。”
+- 如矩形作为正方形的子类则违反了里氏替换原则，因为正方形要求长和宽相等，而矩形显然不满足。继承关系需基于行为契约。
+- 核心原则：
+
+- 子类重写方法需与父类“一致”。一致是指参数列表、返回值、核心逻辑一致，且不缩小父类方法的访问权限。在语义上，子类必须是父类方法行为的拓展，而非否定。且子类不能抛出父类未抛出的checked异常，只能是父类的异常子类。
+- 子类不能隐藏父类的非私有属性（通过重定义覆盖）。
+
+- **开闭原则**
+
+- 开闭原则是编程中最基础，最终的设计原则。其它原则和设计模式本质上是为了实现开闭原则。
+- 开闭原则是说：一个软件实体如类、函数、模块等应该**对扩展开放，对修改关闭**。意思是：尽量通过扩展软件实体的行为来实现变化，而非修改现有代码。
+- 要实现开闭原则：
+
+- 关键是把握业务逻辑中的“变与不变”，将不变的契约抽象为接口，让核心模块依赖抽象而非具体实现。
+- 将系统中可能变化的部分独立封装为类或模块
+
+- 但是切勿过度设计，追求涵盖所有的变化部分，只需对大概率变化的部分做设计即可。
+
+- **迪米特法则**
+
+- “最少知道原则”。
+- 一个对象应该对其他对象保持最少的了解。
+- 只与“直接朋友通信”，不与“间接朋友”直接联系。
+
+- 所谓直接朋友，就是当前考虑的对象的成员变量、方法参数、返回值、方法内部创建的局部对象。
+- 间接朋友就是通过直接朋友获得关系的。
+- 举个例子就是点外卖只与平台交流，而不和商家、骑手交流。
+
+- **合成复用原则**
+
+- 尽量使用合成、聚合的方式，而非继承。
+- 继承是一种高耦合方式，通过鼓励现有对象组合实现代码复用可以缓解这一点。
+- 三种复用方式对比：
+
+- 继承
+
+- 子类和父类本质一致，is-a，如Dog和Animal。
+
+- 组合
+
+- 当前对象包含另一个对象，同生共死，生命周期一致
+- contains-a，如Car和Engine。
+
+- 聚合
+
+- 当前对象包含另一个对象，生命周期独立
+- has-a，被包含对象作为当前对象的附属部分，如Emplyee和Company
+
+# UML类图
+
+![image.png](/images/posts/我个人的-后端学习-设计模式/设计模式-1.png)
+
+其中，关联关系类似数据库实体，存在单双向，1对n 或 1对1，是依赖关系的特例。
+
+这些关系并非互斥，有时两个类之间可能多个关系都是正确的。
+
+# 设计模式概述
+
+设计模式可分为三种类型：共23种（以经典书籍为准）：
+
+- **创建者模式：**关于对象的创建。其本质是 “将对象的创建与使用分离”，避免硬编码`new`操作导致的扩展性问题。
+- **结构型模式：**通过合理组合对象或类，构建灵活、可扩展的系统结构。主要处理 “类与类、对象与对象之间的组合关系”
+- **行为型模式：**定义对象之间的交互规则和职责分配，让对象协作更灵活、可扩展。主要处理 “对象的行为如何分配”“对象之间如何通信”“如何控制算法流程” 等问题。
+
+三种类型分别聚焦 对象创建、对象组合和对象交互，全方位为程序设计提供指导。
+
+# 单例模式
+
+核心目标是**确保一个类在整个应用程序中仅有一个实例，并提供一个全局访问点来获取该实例**。
+
+## 单例模式的几种经典实现
+
+### 饿汉式
+
+```java
+public Demo {
+    private Demo() {}
+
+    private static final instance = new Demo();
+
+    public static Demo getInstance() {
+        return instance;
+    }
+}
+```
+
+优点：线程安全，简单。
+
+缺点：可能造成内存浪费（但是可以用）。
+
+### 懒汉式
+
+```java
+public Demo {
+    private Demo() {}
+
+    private static instance;
+
+    public static Demo getInstance() {
+        if (instance == null) instance = new Demo();
+        return instance;
+    }
+}
+```
+
+优点：内存友好
+
+缺点：线程不安全（实际不要用）。
+
+线程安全化就是将getInstace加synchronized关键字即可，但是直接加的话效率太低，因为每次获取都得等锁。
+
+### 双重检查（懒汉式-线程安全+效率版）
+
+```java
+public Demo {
+    private Demo() {}
+
+    private static volatile instance; // 注意 volatile关键字、
+
+    public static Demo getInstance() {
+        if (instance == null) {
+            synchronized(Demo.class) {
+                if (instance == null) {
+                    instance = new Demo();
+                }
+            }
+        }
+        return instance;
+    }
+}
+```
+
+推荐使用。
+
+### 静态内部类
+
+```java
+public Demo {
+    private Demo() {}
+
+    private static volatile instance; // 注意 volatile关键字
+
+    public static class DemoInstance {
+        private static final Demo instance = new Demo();
+    }
+
+    public static Demo getInstance() {
+        return DemoInstance.instance;
+    }
+}
+```
+
+这种方式同时保证了懒加载 + 线程安全。
+
+懒加载：直到getInstance被调用时，DemoInstance类才会被加载。
+
+线程安全：JVM类的装载是线程安全的，借用这一点。
+
+### 枚举
+
+```java
+enum {
+    INSTANCE;
+    void sayHello() {
+        sout("hello");
+    }
+}
+```
+
+enum.INSTANCE就是单例的。
+
+推荐使用。
+
+# 工厂模式
+
+核心目标是**封装对象的创建逻辑，解耦对象的‘创建’与‘使用'**，让调用者无需关心对象的具体创建细节（如`new`操作、初始化参数、依赖关系），只需通过工厂获取对象实例。
+
+工厂模式根据系统复杂度，有三种演进：简单工厂模式、工厂方法模式、抽象工厂模式。
+
+三种工厂模式的核心痛点：直接`new`对象会导致调用者与具体类强耦合（如`Payment payment = new WeChatPayment()`），新增产品（如`AlipayPayment`）时需修改调用者代码，违反**开闭原则**。
+
+## 简单工厂模式：集中式创建（非官方定义的设计模式）
+
+核心思想是：工厂类通过if-else判断需要的具体产品，创建并返回给调用者。
+
+```java
+// 简单工厂：根据参数创建不同支付产品
+public class PaymentFactory {
+    // 静态方法：无需创建工厂实例，直接调用
+    public static IPayment createPayment(String paymentType) {
+        // 根据参数判断创建哪种产品
+        if ("WECHAT".equals(paymentType)) {
+            return new WeChatPayment();
+        } else if ("ALIPAY".equals(paymentType)) {
+            return new AlipayPayment();
+        } else {
+            throw new IllegalArgumentException("不支持的支付方式：" + paymentType);
+        }
+    }
+}
+```
+
+优点：
+
+- 实现简单
+- 解耦调用者与具体产品
+
+缺点：
+
+- 违反开闭原则，新增产品需要修改工厂类的if-else逻辑
+- 工厂类职责过重，难以维护。
+
+## 工厂方法模式
+
+工厂方法模式将简单工厂解耦，抽象出一个通用工厂，每个具体产品对应一个具体工厂，抽象工厂规范所有具体工厂的行为。这是工厂模式的标准形态，完全符合开闭原则。
+
+```java
+// 抽象工厂：规范工厂的行为（必须实现createPayment()方法）
+public interface IPaymentFactory {
+    IPayment createPayment(); // 声明创建支付产品的接口
+}
+// 具体工厂1：微信支付工厂 → 创建微信支付产品
+public class WeChatPayFactory implements IPaymentFactory {
+    @Override
+    public IPayment createPayment() {
+        // 可在此处添加微信支付的复杂初始化逻辑（如加载配置、初始化客户端）
+        return new WeChatPayment();
+    }
+}
+
+// 具体工厂2：支付宝工厂 → 创建支付宝支付产品
+public class AlipayFactory implements IPaymentFactory {
+    @Override
+    public IPayment createPayment() {
+        // 支付宝的复杂初始化逻辑（如签名配置）
+        return new AlipayPayment();
+    }
+}
+```
+
+优点：
+
+- 完全符合开闭原则。
+- 工厂职责单一，代码清晰。
+- 彻底解耦。
+
+缺点：
+
+- 类数量激增，复杂度上升。
+- 不支持产品簇，如Windows平台下的所有UI组件。
+
+## 抽象工厂模式：产品簇创建
+
+对工厂方法模式的升级，扩展了产品簇的表达能力。一个具体工厂负责创建一组产品，而非一个。
+
+- 工厂方法模式处理的是 **“单一类型的独立产品”**（如 “支付方式” 这个单一类型下的微信支付、支付宝支付）；
+- 抽象工厂模式处理的是 **“多个类型且强关联的产品簇”**（如 “Windows UI” 这个产品簇下的 “Windows 按钮”“Windows 文本框”—— 这两个产品必须配套使用，否则会出现 “Windows 按钮 + Mac 文本框” 的风格混乱）。
+
+但是二者在代码实现上差不多，只是抽象工厂模式的具体工厂里面有多个方法。
+
+# 原型模式
+
+原型模式是**创建型模式**的重要成员，其核心目标是 “通过复制（克隆）已有对象（原型）来创建新对象，而非通过`new`关键字直接实例化“。
+
+**“用一个已经创建的实例作为原型，通过复制该原型对象来创建一个和原型相同或相似的新对象。”**
+
+当创新对象成本较高时，如初始化需要复杂计算、IO请求、网络请求时，原型模式可以大大提高效率。
+
+总之，手动new对象可能存在效率低、逻辑复杂等问题，而原型模式就是为了解决这一痛点。
+
+## Java场景原型模式的实现方式
+
+- 具体原型类实现Cloneable接口（该接口无实际方法，仅作为一个可克隆标记，表示该类支持克隆）。
+- 重写Object类的clone()方法。
+- Object的clone方法是实现的浅克隆。
+
+原型模式的关键在于克隆深度，分为浅克隆与深克隆。
+
+## 浅克隆
+
+对于值类型，复制值。引用类型，原型对象与克隆对象共用一个引用，会相互影响。
+
+```java
+// 重写clone()方法，实现浅克隆
+@Override
+protected Order clone() throws CloneNotSupportedException {
+    // 调用Object的native clone()方法，完成浅克隆
+    return (Order) super.clone();
+}
+```
+
+## 深克隆
+
+复制对象本身及所有引用属性。原型对象与克隆对象的引用完全独立。
+
+深克隆的方式又有如下几种类型。
+
+### 手动克隆引用属性：适合简单结构
+
+```java
+@Override
+protected Order clone() throws CloneNotSupportedException {
+    // 1. 先执行浅克隆，得到基本属性的复制
+    Order deepCloneOrder = (Order) super.clone();
+    // 2. 手动克隆引用属性User（调用User的clone()方法）
+    deepCloneOrder.user = this.user.clone();
+    // 若有多个引用属性（如List<Product>），需逐个克隆
+    // deepCloneOrder.productList = new ArrayList<>(this.productList); // 复制集合
+    return deepCloneOrder;
+}
+```
+
+### 通过序列化实现深克隆：适合复杂嵌套结构
+
+对于复杂的多层嵌套结构，可以通过序列化->反序列化实现全自动深克隆。实现全自动深克隆。
+
+核心原理：将原型对象序列化为字节流（所有属性均被写入流），再反序列化为新对象（从流中读取所有属性，包括引用对象，生成全新实例）。
+
+前提是所有相关类必须实现Serializable接口。（此接口也是无实际方法，标记作用）。
+
+```java
+// 步骤1：所有类实现Serializable接口
+public class User implements Serializable { /* 省略属性和方法 */ }
+
+public class Order implements Serializable {
+    // 基本属性和引用属性（同上）
+
+    // 深克隆方法：通过序列化实现
+    public Order deepCloneBySerialization() throws IOException, ClassNotFoundException {
+        // 1. 序列化：将对象写入字节流
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(bos);
+        oos.writeObject(this); // 将原型对象写入流
+
+        // 2. 反序列化：从字节流读取对象，生成新实例
+        ByteArrayInputStream bis = new ByteArrayInputStream(bos.toByteArray());
+        ObjectInputStream ois = new ObjectInputStream(bis);
+        return (Order) ois.readObject(); // 返回全新的克隆对象
+    }
+}
+```
+
+通过序列化实现深克隆时，需确保所有相关类都实现`Serializable`接口，且无法克隆`transient`修饰的属性（瞬时属性，不参与序列化），static修饰的属性属于类，也不参与序列化。
+
+其中使用的输入输出流是JVM专门为了序列化设计的。
+
+序列化的完整过程，就是 “给对象打标签（实现 Serializable）→ 按规则打包成字节流（序列化流写入）→ 传输 / 存储字节流 → 按规则拆包还原对象（反序列化流读取）” 的闭环。其核心价值是打破 “对象只能存在于内存” 的限制，让对象可以在存储和网络中流转，是分布式系统、持久化存储的基础技术之一。
+
+**所以序列化实际上类似于网络协议，序列化和反序列化的过程需要遵守一套相同的规则。**
+
+需注意：若对象结构简单、创建成本低，直接`new`对象更高效，无需过度设计。
+
+# 建造者模式
+
+建造者模式在**创建型模式**中专注于”复杂对象构建“，其核心目标是把 “复杂对象的分步创建逻辑” 单独抽离，让调用者无需关心对象内部的组装细节，就能灵活构建出不同配置的对象。
+
+定义有些抽象，通过建造者模式解决的核心问题来进一步理解：
+
+- 构造器参数爆炸，如构造函数有十几个参数，可读性，可维护性极差。
+- 对象的部件组装逻辑与业务逻辑混杂。
+- 难以支持可选部件，不同配置组合。
+
+**解耦构建与表示**：构建过程（如何组装部件）与产品表示（部件的具体配置）分离，同一构建流程可创建不同产品（如基础版 / 豪华版汽车）。
+
+**核心逻辑**：调用者→指挥者→具体建造者→产品，形成一条 “委托链”，每个角色只负责自己的职责。
+
+- 指挥者负责协调构建过程（如何组装部件，是先装车轮还是先装座椅）。
+- 具体建造者负责具体产品组件的产出（使用什么轮胎，什么座椅）。
+
+```java
+// 抽象建造者：定义汽车建造的步骤
+public interface CarBuilder {
+    // 构建发动机
+    void buildEngine();
+    // 构建轮胎
+    void buildTire();
+    // 构建天窗（可选，具体建造者按需实现）
+    void buildSunroof();
+    // 构建座椅（可选）
+    void buildSeat();
+    // 返回构建好的汽车
+    Car getResult();
+}
+
+// 指挥者：控制汽车建造的顺序（固定流程）
+public class CarDirector {
+    // 接收具体建造者，按顺序构建汽车
+    public Car construct(CarBuilder builder) {
+        // 固定流程：先装发动机→轮胎→天窗→座椅
+        builder.buildEngine();
+        builder.buildTire();
+        builder.buildSunroof();
+        builder.buildSeat();
+        return builder.getResult(); // 返回最终产品
+    }
+}
+```
+
+还有一种简化的链式调用方式，不定义指挥者：
+
+```java
+// 产品：订单（Order）
+public class Order {
+    private String orderId;
+    private String productName;
+    private double price;
+    private int quantity;
+    private String address;
+    private boolean isVip;
+
+    // 私有构造器：只能通过建造者创建
+    private Order(Builder builder) {
+        this.orderId = builder.orderId;
+        this.productName = builder.productName;
+        this.price = builder.price;
+        this.quantity = builder.quantity;
+        this.address = builder.address;
+        this.isVip = builder.isVip;
+    }
+
+    // 流式建造者（内部类）
+    public static class Builder {
+        // 必选参数（无默认值）
+        private final String orderId;
+        private final String productName;
+
+        // 可选参数（有默认值）
+        private double price = 0.0;
+        private int quantity = 1;
+        private String address = "默认地址";
+        private boolean isVip = false;
+
+        // 构造器：初始化必选参数
+        public Builder(String orderId, String productName) {
+            this.orderId = orderId;
+            this.productName = productName;
+        }
+
+        // 链式设置可选参数（返回Builder自身）
+        public Builder price(double price) {
+            this.price = price;
+            return this;
+        }
+
+        public Builder quantity(int quantity) {
+            this.quantity = quantity;
+            return this;
+        }
+
+        public Builder address(String address) {
+            this.address = address;
+            return this;
+        }
+
+        public Builder isVip(boolean isVip) {
+            this.isVip = isVip;
+            return this;
+        }
+
+        // 构建产品
+        public Order build() {
+            return new Order(this);
+        }
+    }
+
+    // 展示订单信息
+    public void show() {
+        System.out.println("订单ID：" + orderId);
+        System.out.println("商品：" + productName);
+        System.out.println("单价：" + price + "，数量：" + quantity);
+        System.out.println("地址：" + address + "，是否VIP：" + isVip);
+    }
+}
+```
+
+这个是通过静态内部类实现，如果直接在Order中实现链式调用会有如下问题：
+
+- 对象在未完成配置时就已创建，存在 “中间态” 风险。
+- 无法实现不可变对象，存在线程安全问题。（在Order里面提供price等方法相当于setter）。
+
+总结来看：
+
+- 直接在Order实现的方式是 “先有对象，再改参数”，存在中间态和可变性风险；
+- 静态内部类方式是 “先攒参数，再造对象”，保证创建即完整、创建后不可变。
+
+# 适配器模式
+
+适配器模式是**结构型模式**的重要成员，其核心目标是 “解决两个已有接口之间的不兼容问题，让原本因接口不匹配而无法协同工作的类可以一起工作”。类似于转接器。
+
+**“将一个类的接口转换成客户期望的另一个接口，使原本接口不兼容的类可以一起工作。”**
+
+由实现方式的不同，适配器模式分为**类适配器模式**和**对象适配器模式**。
+
+- 类适配器模式通过继承现有类实现适配。
+- 对象适配器模式通过组合实现适配。
+
+**建议优先使用对象适配器模式**，符合合成复用原则，使用组合而非继承。
+
+类适配器示例：（对象适配器类似）
+
+```java
+// 类适配器：通过继承适配者（TwoHundredTwentyVoltPower），实现目标接口（FiveVoltPower）
+public class PowerClassAdapter extends TwoHundredTwentyVoltPower implements FiveVoltPower {
+    @Override
+    public int getFiveVolt() {
+        // 1. 调用适配者的方法（获取220V）
+        int voltage = getTwoHundredTwentyVolt();
+        // 2. 转换电压（模拟降压逻辑：220V → 5V）
+        int convertedVoltage = voltage / 44;
+        System.out.println("通过类适配器转换后电压：" + convertedVoltage + "V");
+        return convertedVoltage;
+    }
+}
+```
+
+# 桥接模式
+
+桥接模式属于**结构型模式**，其核心目标是通过 **“组合” 代替 “继承”**，解决因多维度变化导致的 “类爆炸” 问题，让两个独立变化的维度（如 “形状” 与 “颜色”、“品牌” 与 “功能”）可以灵活组合，而无需创建大量子类。
+
+例如，在绘图场景下，有多个图形，每个图形又有多个颜色。颜色和图形是两个独立变化的维度。如果使用继承方式，即先定义一个Shape接口，Circle类继承Shape，RedCircle，GreenCircle... 继承Circle。这样每对&lt;颜色，形状>组合都要定义一个类，如果要添加一种颜色，就要再定义“形状数量”个类。
+
+但如果使用组合的方式，先定义实现类Color，之后定义Red，Green，Blue等类。再按需将每种实现类组合进Shape，那么修改将是线性的（继承方式是指数）。
+
+```java
+// 1. 抽象化角色（Abstraction）：抽象形状类（持有Color引用，委托颜色填充逻辑）
+public abstract class Shape {
+    // 核心：通过组合关联实现化角色（Color）
+    protected Color color;
+
+    // 构造器注入Color，建立桥接关系
+    public Shape(Color color) {
+        this.color = color;
+    }
+
+    // 抽象方法：绘制形状（具体逻辑由子类实现）
+    public abstract void draw();
+}
+
+// 2. 扩展抽象化角色（Refined Abstraction）：圆形
+public class Circle extends Shape {
+    public Circle(Color color) {
+        super(color); // 调用父类构造器，注入颜色
+    }
+
+    @Override
+    public void draw() {
+        System.out.print("绘制");
+        color.fillColor(); // 委托Color实现颜色填充
+        System.out.println("圆形");
+    }
+}
+
+// 3. 扩展抽象化角色（Refined Abstraction）：矩形
+public class Rectangle extends Shape {
+    public Rectangle(Color color) {
+        super(color);
+    }
+
+    @Override
+    public void draw() {
+        System.out.print("绘制");
+        color.fillColor(); // 委托Color实现颜色填充
+        System.out.println("矩形");
+    }
+}
+```
+
+当类**存在多个独立变化的维度**时，就可以考虑使用桥接模式。
+
+# 装饰者模式
+
+装饰者模式是**结构型模式**中专注于 “动态功能扩展” 的模式，其核心目标是“在不改变原有对象结构的前提下，通过嵌套包装的方式，为对象动态添加新功能”。
+
+类似于手机壳，不改变手机原有功能，为手机提供保护。
+
+核心角色：
+
+- 抽象组件：提供通用行为。
+- 具体组件：被装饰者类要实现抽象组件接口。（不改变原有功能，增加一个函数实现，符合开闭原则）。
+- 抽象装饰者：持有一个被装饰者对象的引用（引用类型为抽象组件），实现原有功能。
+- 具体装饰者：继承抽象装饰者，调用被装饰者方法的基础上，实现额外装饰功能。
+
+实现示例：
+
+```java
+// 具体组件：被装饰的原始对象（提供基础功能）
+public class BaseDataProcessor implements DataProcessor {
+    @Override
+    public String process(String data) {
+        // 基础功能：直接返回原始数据
+        System.out.println("执行基础数据处理：原始输出");
+        return "原始数据：" + data;
+    }
+}
+// 抽象装饰者：实现组件接口，持有组件引用，定义装饰者结构
+public abstract class DataProcessorDecorator implements DataProcessor {
+    // 持有被装饰的组件（可以是原始对象或其他装饰者）
+    protected DataProcessor processor;
+
+    // 构造器注入被装饰的组件
+    public DataProcessorDecorator(DataProcessor processor) {
+        this.processor = processor;
+    }
+
+    // 重写process方法，默认调用被装饰者的方法（具体装饰者可扩展）
+    @Override
+    public String process(String data) {
+        // 委托被装饰者处理（核心：保留原有功能）
+        return processor.process(data);
+    }
+}
+// 调用者
+ // 先加密后压缩（嵌套装饰：压缩装饰者包裹加密装饰者）
+DataProcessor encryptThenCompress = new CompressionDecorator(
+    new EncryptionDecorator(baseProcessor)
+);
+System.out.println("=== 先加密后压缩结果 ===");
+String etoResult = encryptThenCompress.process(originalData);
+System.out.println(etoResult + "\n");
+```
+
+装饰者模式适用于希望动态扩展对象功能（即在运行时为对象添加功能），且功能组合灵活多变的情况。
+
+JDK 中`java.io`包是装饰者模式的经典实现：
+
+- **抽象组件（Component）**：`InputStream`（定义输入流的核心接口`read()`）；
+- **具体组件（Concrete Component）**：`FileInputStream`（文件输入流，基础实现）、`ByteArrayInputStream`（字节数组输入流）；
+- **抽象装饰者（Decorator）**：`FilterInputStream`（实现`InputStream`，持有`InputStream`引用）；
+- **具体装饰者**：`BufferedInputStream`（缓冲装饰者，添加缓冲功能）、`DataInputStream`（数据类型装饰者，添加基本类型读取功能）。
+
+# 组合模式
+
+组合模式是**结构型模式**中专注于 “树形结构统一处理” 的模式，其核心目标是“将对象组合成树形结构，使客户端能以统一的方式处理单个对象（叶子节点）和组合对象（容器节点）”。
+
+类似于电脑的**文件系统**。
+
+解决的核心问题：
+
+当系统中存在 “整体 - 部分” 的层级关系（树形结构）（如文件系统、组织结构、UI 组件树）时，直接区分 “单个对象” 和 “组合对象” 会导致客户端代码冗余且难以扩展。
+
+- 客户端需频繁判断对象类型
+- 树形结构扩展困难，如果要添加一个文件类型，要修改所有的if-else，违反开闭原则。
+- 操作一致性差。
+
+**组合模式的核心角色：**
+
+- 抽象构件：定义叶子和容器的统一接口，定义核心操作（如add, delete）.
+- 叶子构件
+- 容器构件
+
+**实现示例：（文件系统）**
+
+实际上就是定义一个抽象类，预先实现一些通用的处理，如果某个子类有这个功能，就覆盖掉，没有的话就使用抽象类中定义的默认方法返回“不支持”的信息。
+
+```java
+// 抽象构件：定义文件和文件夹的统一接口
+public abstract class FileSystemComponent {
+    // 核心操作：显示组件信息（文件/文件夹名称、大小等）
+    public abstract void showInfo(int depth); // depth：层级深度，用于显示树形结构缩进
+
+    // （可选）子构件管理方法：添加子组件（仅文件夹支持，文件不支持）
+    public void add(FileSystemComponent component) {
+        // 默认实现：抛出不支持异常（叶子节点无需实现）
+        throw new UnsupportedOperationException("当前组件不支持添加子组件");
+    }
+
+    // （可选）子构件管理方法：删除子组件
+    public void remove(FileSystemComponent component) {
+        throw new UnsupportedOperationException("当前组件不支持删除子组件");
+    }
+
+    // （可选）子构件管理方法：获取子组件
+    public FileSystemComponent getChild(int index) {
+        throw new UnsupportedOperationException("当前组件不支持获取子组件");
+    }
+
+    // 核心操作：删除组件（文件直接删除，文件夹需删除自身及所有子组件）
+    public abstract void delete();
+}
+
+// 叶子构件：文件（无子类节点）
+public class File extends FileSystemComponent {
+    private String name; // 文件名
+    private long size;   // 文件大小（单位：KB）
+
+    public File(String name, long size) {
+        this.name = name;
+        this.size = size;
+    }
+
+    // 实现显示信息：根据层级深度添加缩进，显示文件名和大小
+    @Override
+    public void showInfo(int depth) {
+        // 生成缩进（每级深度对应2个空格）
+        String indent = "  ".repeat(depth);
+        System.out.printf("%s📄 文件：%s，大小：%dKB%n", indent, name, size);
+    }
+
+    // 实现删除：直接删除文件
+    @Override
+    public void delete() {
+        System.out.printf("删除文件：%s%n", name);
+    }
+}
+
+// 容器构件：文件夹（可包含文件或子文件夹）
+import java.util.ArrayList;
+import java.util.List;
+
+public class Folder extends FileSystemComponent {
+    private String name; // 文件夹名称
+    // 聚合子构件：存储所有子组件（File或Folder）
+    private List<FileSystemComponent> children = new ArrayList<>();
+
+    public Folder(String name) {
+        this.name = name;
+    }
+
+    // 实现添加子组件：将文件/文件夹加入子列表
+    @Override
+    public void add(FileSystemComponent component) {
+        children.add(component);
+        System.out.printf("将「%s」添加到文件夹「%s」%n",
+            (component instanceof File ? "文件" : "文件夹") + component.toString(), name);
+    }
+
+    // 实现删除子组件：从子列表中移除
+    @Override
+    public void remove(FileSystemComponent component) {
+        if (children.remove(component)) {
+            System.out.printf("从文件夹「%s」删除「%s」%n",
+                name, (component instanceof File ? "文件" : "文件夹") + component.toString());
+        } else {
+            System.out.printf("文件夹「%s」中不存在「%s」%n",
+                name, (component instanceof File ? "文件" : "文件夹") + component.toString());
+        }
+    }
+
+    // 实现获取子组件：根据索引返回子节点
+    @Override
+    public FileSystemComponent getChild(int index) {
+        if (index >= 0 && index < children.size()) {
+            return children.get(index);
+        }
+        throw new IndexOutOfBoundsException("子组件索引越界");
+    }
+
+    // 实现显示信息：先显示自身，再递归显示所有子节点（深度+1）
+    @Override
+    public void showInfo(int depth) {
+        String indent = "  ".repeat(depth);
+        System.out.printf("%s📂 文件夹：%s（包含%d个子组件）%n", indent, name, children.size());
+        // 递归调用所有子节点的showInfo，深度+1（子节点缩进更明显）
+        for (FileSystemComponent child : children) {
+            child.showInfo(depth + 1);
+        }
+    }
+
+    // 实现删除：先递归删除所有子节点，再删除自身
+    @Override
+    public void delete() {
+        System.out.printf("开始删除文件夹「%s」%n", name);
+        // 1. 递归删除所有子组件（先删子，再删父，避免依赖问题）
+        for (FileSystemComponent child : children) {
+            child.delete();
+        }
+        // 2. 清空子列表（可选，释放资源）
+        children.clear();
+        // 3. 删除自身
+        System.out.printf("删除文件夹「%s」%n", name);
+    }
+
+    // 重写toString，方便打印时显示名称
+    @Override
+    public String toString() {
+        return name;
+    }
+}
+```
+
+组合模式适用于系统结构为树形结构、客户端需要统一处理节点、动态扩展、递归操作的情况。
+
+# 外观模式
+
+外观模式是**结构型模式**中专注于 “简化复杂系统访问” 的模式，其核心目标是“为复杂的子系统提供一个统一的、简化的接口，让客户端无需了解子系统内部的复杂结构，只需通过这个接口即可与子系统交互”。类似于服务员，顾客不需要与后厨交互，不需要了解制作流程。
+
+**解决的核心问题：**
+
+在大型系统开发中，随着功能迭代，往往会拆分出多个相互关联的子系统（如电商系统中的 “订单子系统”“支付子系统”“库存子系统”“物流子系统”）。直接让客户端与这些子系统交互会带来以下问题：
+
+- 客户端与子系统强耦合
+- 暴露细节
+- 逻辑复杂
+
+核心角色包括：外观、子系统、客户端。
+
+**核心逻辑**：客户端通过外观类的单一接口触发业务流程，外观类内部按业务规则调用多个子系统的接口，协调子系统完成工作，最终将结果返回给客户端。子系统之间的交互也可通过外观类间接进行，进一步降低子系统间的耦合。
+
+示例：（电商）
+
+```java
+// 外观类：订单外观，为客户端提供统一的下单接口
+public class OrderFacade {
+    // 持有所有相关子系统的引用（可通过构造器注入，此处简化为直接创建）
+    private OrderSystem orderSystem = new OrderSystem();
+    private InventorySystem inventorySystem = new InventorySystem();
+    private PaymentSystem paymentSystem = new PaymentSystem();
+    private LogisticsSystem logisticsSystem = new LogisticsSystem();
+
+    /**
+     * 统一的下单接口（客户端只需调用这一个方法）
+     * @param userId 用户ID
+     * @param productId 商品ID
+     * @param quantity 购买数量
+     * @param amount 支付金额
+     * @param address 收货地址
+     * @return 下单结果（包含订单ID、物流单号等信息）
+     */
+    public OrderResult placeOrder(String userId, String productId, int quantity, double amount, String address) {
+        System.out.println("=== 开始执行下单流程 ===");
+
+        // 步骤1：创建订单
+        String orderId = orderSystem.createOrder(userId, productId, quantity);
+        if (orderId == null) {
+            return new OrderResult(false, "下单失败：订单创建失败", null, null);
+        }
+
+        // 步骤2：扣减库存（订单创建成功后才执行）
+        boolean stockDeducted = inventorySystem.deductStock(productId, quantity);
+        if (!stockDeducted) {
+            // 库存扣减失败，需回滚订单（此处简化为仅返回失败）
+            return new OrderResult(false, "下单失败：库存不足或商品无效", orderId, null);
+        }
+
+        // 步骤3：发起支付（库存扣减成功后才执行）
+        boolean paymentSuccess = paymentSystem.makePayment(orderId, userId, amount);
+        if (!paymentSuccess) {
+            // 支付失败，需回滚订单和库存（此处简化为仅返回失败）
+            return new OrderResult(false, "下单失败：支付失败", orderId, null);
+        }
+
+        // 步骤4：创建物流单（支付成功后才执行）
+        String logisticsId = logisticsSystem.createLogisticsOrder(orderId, userId, address);
+        if (logisticsId == null) {
+            // 物流单创建失败，需回滚前序步骤（此处简化为仅返回失败）
+            return new OrderResult(false, "下单失败：物流单创建失败", orderId, null);
+        }
+
+        // 所有步骤成功，返回成功结果
+        System.out.println("=== 下单流程执行完成 ===");
+        return new OrderResult(true, "下单成功", orderId, logisticsId);
+    }
+
+    // 下单结果封装类（用于返回给客户端）
+    public static class OrderResult {
+        private boolean success; // 是否成功
+        private String message;  // 提示信息
+        private String orderId;  // 订单ID
+        private String logisticsId; // 物流单号
+
+        // 构造器、getter省略（实际开发中需实现）
+        public OrderResult(boolean success, String message, String orderId, String logisticsId) {
+            this.success = success;
+            this.message = message;
+            this.orderId = orderId;
+            this.logisticsId = logisticsId;
+        }
+
+        // getter方法
+        public boolean isSuccess() { return success; }
+        public String getMessage() { return message; }
+        public String getOrderId() { return orderId; }
+        public String getLogisticsId() { return logisticsId; }
+    }
+}
+```
+
+组合的方式封装四个子系统，订单外观类向外提供简单接口，客户端调用外观类提供的接口完成功能。
+
+外观模式适用于客户端需要与多个子系统交互的情况。
+
+# 享元模式
+
+享元模式是**结构型模式**中专注于 “对象复用与内存优化” 的模式，其核心目标是 “通过共享已经创建的对象（享元对象），减少系统中重复对象的数量，从而节省内存资源，提高系统性能”。类似于共享单车，无需为每个人单独准备一辆车，而是共享同一批车，满足大量用户的需求。
+
+**解决的核心问题：**
+
+系统需要创建大量结构相似，状态重复的对象，直接创建独立对象会导致严重的内存浪费和性能问题。
+
+享元模式的核心原理是：拆分对象状态，共享重复状态。将状态分为内部状态（固有的，可共享）和外部状态（依赖环境，不可共享）。
+
+例如，要创建200个哥布林和100个骷髅兵。
+
+其中存在一些公共的，可共享的内部属性，如初始血量，攻击力；也有一些不可共享的外部属性，如当前位置，当前血量。
+
+我们用享元模式，共享公共的内部属性，并且使用外部存储来保存外部状态。通过组合享元 + 外部状态就可以还原实体的全貌。
+
+因此，享元模式的核心就是之前说的将对象的状态拆分，能共享的就共享。
+
+# 代理模式
+
+代理模式是**结构型模式**中专注于 “对象访问控制” 的模式，其核心目标是“为其他对象提供一种代理（Proxy）以控制对这个对象的访问”。就像是房产中介，租房者不需要直接与房东沟通，中介负责协调。
+
+**解决的核心问题：**
+
+当需要控制目标对象的访问或增强功能时，直接访问目标对象会导致目标对象职责不单一，且存在访问风险。
+
+代理模式通过 “**引入代理对象作为中间层**” 解决这些问题：
+
+- 代理对象与目标对象实现相同的接口，客户端无需区分二者；
+- 代理对象在调用目标对象的方法前后，添加额外的控制逻辑（如权限校验、日志记录）；
+- 目标对象专注于核心业务逻辑，代理对象专注于访问控制和功能增强，实现职责分离。
+
+核心是 “**代理与目标实现同一接口，代理持有目标引用并控制其访问**”。
+
+客户端通过抽象主题接口调用代理对象的方法，代理对象先执行控制逻辑（如 “检查调用者是否有权限”），再调用真实主题的方法，最后执行后续逻辑（如 “记录访问日志”），从而实现对目标对象的访问控制和功能增强。
+
+实现示例：（用户权限控制）
+
+```java
+// 代理：控制对UserService的访问，添加权限校验和日志记录
+public class UserServiceProxy implements UserService {
+    // 持有真实主题的引用（被代理的目标对象）
+    private UserService realUserService;
+    // 记录当前调用者的角色（用于权限校验）
+    private String callerRole;
+
+    // 构造器：传入真实主题和调用者角色
+    public UserServiceProxy(UserService realUserService, String callerRole) {
+        this.realUserService = realUserService;
+        this.callerRole = callerRole;
+    }
+
+    @Override
+    public String getUserInfo(String userId) {
+        // 1. 调用前：权限校验（控制访问）
+        if (!"管理员".equals(callerRole)) {
+            System.out.println("权限校验失败：" + callerRole + "无权查询用户信息");
+            return "访问被拒绝：无权限";
+        }
+        System.out.println("权限校验通过：" + callerRole + "有权限查询用户信息");
+
+        // 2. 调用真实主题的核心方法
+        String result = realUserService.getUserInfo(userId);
+
+        // 3. 调用后：记录访问日志（功能增强）
+        System.out.println("记录日志：" + callerRole + "查询了用户ID=" + userId + "的信息");
+
+        return result;
+    }
+}
+```
+
+根据代理的创建时机和实现方式，代理模式可以分为三种常见类型：
+
+## 静态代理
+
+上面的例子就是静态代理。
+
+特点是代理类在**编译器手动创建**，与真实主题实现统一接口，明确持有真实主题的引用。适用于简单情况。
+
+## 动态代理
+
+代理类在**运行时动态生成**（无需手动编写代理类代码），通过反射机制在调用时拦截方法，添加控制逻辑。
+
+特点是无需手动创建代理类，接口方法变更无需修改代码。但实现相对复杂，且性能略低于静态代理（反射开销）。适合需要代理大量类或接口频繁变更的场景（如 Spring AOP 的核心实现就是动态代理）。
+
+代理模式的进阶实现，适用于 “需要代理多个类” 或 “接口频繁变更” 的场景。
+
+### 核心原理
+
+动态代理的本质是 “通过反射机制，在运行时动态生成一个实现目标接口的代理类字节码，并用该代理类创建对象”。核心流程如下：
+
+1.  **定义代理逻辑**：编写 “方法拦截器”，定义在调用目标方法前后需要执行的额外逻辑（如日志、权限校验）；
+2.  **生成代理类**：通过代理框架（如 JDK 动态代理、CGLIB），在运行时根据目标接口（或目标类）动态生成代理类的字节码；
+3.  **创建代理对象**：使用类加载器加载动态生成的代理类字节码，创建代理对象；
+4.  **拦截方法调用**：客户端调用代理对象的方法时，会被 “方法拦截器” 拦截，先执行额外逻辑，再反射调用目标对象的真实方法。
+
+### Java中的两种主流实现方式
+
+#### JDK动态代理（官网原生，基于接口）
+
+JDK 动态代理是 Java 官方提供的动态代理方案，位于`java.lang.reflect`包下，核心类是`Proxy`和`InvocationHandler`，分别是代理工具类和方法拦截器接口。
+
+特点是：**只能代理实现了接口的类**。无需额外jar包。
+
+```java
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.util.Arrays;
+
+// 全局日志拦截器：实现InvocationHandler，定义代理逻辑
+public class LogInvocationHandler implements InvocationHandler {
+    // 持有被代理的目标对象（可以是任意实现接口的类）
+    private Object target;
+
+    // 构造器：传入目标对象
+    public LogInvocationHandler(Object target) {
+        this.target = target;
+    }
+
+    /**
+     * 核心方法：拦截代理对象的所有方法调用
+     * @param proxy  动态生成的代理对象（一般不用）
+     * @param method 被调用的目标方法
+     * @param args   目标方法的参数
+     * @return 目标方法的返回值
+     * @throws Throwable 目标方法抛出的异常
+     */
+    @Override
+    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+        // 1. 方法调用前：打印日志（入参信息）
+        System.out.println("【JDK动态代理】调用方法：" + method.getName() +
+                           "，入参：" + Arrays.toString(args));
+
+        // 2. 反射调用目标对象的真实方法
+        Object result = method.invoke(target, args);
+
+        // 3. 方法调用后：打印日志（返回值信息）
+        System.out.println("【JDK动态代理】方法" + method.getName() +
+                           "调用完成，返回值：" + result + "\n");
+
+        return result;
+    }
+}
+
+```
+
+```java
+import java.lang.reflect.Proxy;
+
+public class JdkProxyClient {
+    public static void main(String[] args) {
+        // 1. 创建目标对象
+        UserService userService = new UserServiceImpl();
+        OrderService orderService = new OrderServiceImpl();
+
+        // 2. 创建日志拦截器（传入目标对象）
+        InvocationHandler userLogHandler = new LogInvocationHandler(userService);
+        InvocationHandler orderLogHandler = new LogInvocationHandler(orderService);
+
+        // 3. 动态生成代理对象（核心步骤）
+        // 代理UserService
+        UserService userProxy = (UserService) Proxy.newProxyInstance(
+            userService.getClass().getClassLoader(), // 目标对象的类加载器
+            userService.getClass().getInterfaces(),  // 目标对象实现的所有接口
+            userLogHandler                           // 方法拦截器
+        );
+
+        // 代理OrderService
+        OrderService orderProxy = (OrderService) Proxy.newProxyInstance(
+            orderService.getClass().getClassLoader(),
+            orderService.getClass().getInterfaces(),
+            orderLogHandler
+        );
+
+        // 4. 调用代理对象的方法（会被拦截器拦截）
+        userProxy.getUserInfo("U1001");       // 调用用户服务方法
+        orderProxy.createOrder("U1001", "P2001"); // 调用订单服务方法
+    }
+}
+```
+
+核心是Proxy.newProxyInstance方法，其执行流程可以概括为：
+
+- 根据目标接口构建代理类字节码
+- 通过传入的类加载器加载构造的字节码文件（代理类）
+- 初始化代理类，传入拦截器，代理类持有拦截器实例
+
+同时代理类内部会重写目标接口的方法，在重写的方法内部，获取Method实例，并调用拦截器的invoke方法。所以业务逻辑是在invoke里面定义的。我们只需要调用Proxy.newProxyInstance生成代理类并传入加载器、拦截器即可。
+
+代理类的核心工作：“**持有拦截器 + 触发拦截逻辑**”。
+
+代理类伪代码：
+
+```java
+// CGLIB动态生成的代理子类（伪代码）
+public class ProductService$$EnhancerByCGLIB$$123 extends ProductService {
+    // 持有拦截器引用
+    private MethodInterceptor CGLIB$CALLBACK_0;
+
+    // 重写父类方法 getProductPrice()
+    @Override
+    public double getProductPrice(String productId) {
+        // 获取方法代理对象（CGLIB生成，用于高效调用父类方法）
+        MethodProxy proxy = CGLIB$getProductPrice$0$Proxy;
+        // 调用拦截器的 intercept() 方法
+        return (double) CGLIB$CALLBACK_0.intercept(
+            this,                  // 代理对象自身
+            CGLIB$getProductPrice$0, // 目标方法（getProductPrice）
+            new Object[]{productId}, // 方法参数
+            proxy                  // 方法代理对象
+        );
+    }
+}
+```
+
+### CGLIB 动态代理（第三方，基于继承）
+
+第三方字节码生成库，通过**继承目标类**动态生成代理类（而非实现接口），因此**可以代理 “没有实现接口的类”**。
+
+核心组件为Enhancer 和 MethodInceptor。和JDK动态代理逻辑类似。
+
+局限是不能代理final类和方法，因为不可继承、不可重写。
+
+## 远程代理
+
+为**远程对象**（如另一台服务器上的服务）提供本地代理，屏蔽网络通信细节（如 Socket 连接、数据序列化）。
+
+特点是客户端无需关心远程调用的底层实现，像调用本地对象一样调用远程服务。
+
+适用于分布式系统。
+
+代理模式的核心是 “**通过中间层控制对象访问**”，它通过代理对象与真实主题实现同一接口，在不改变核心业务逻辑的前提下，灵活添加访问控制和功能增强。无论是静态代理的简单直接，还是动态代理的灵活高效，其本质都是 “分离关注点”—— 让真实主题专注于业务，让代理专注于控制。
+
+# 模版模式
+
+模板模式是**行为型模式**中专注于 “流程标准化与细节差异化” 的模式，其核心目标是“定义一个算法的骨架（流程步骤），将算法中某些步骤的具体实现延迟到子类中，使得子类可以在不改变算法整体结构的前提下，重写某些特定步骤的逻辑”。
+
+比如煮奶茶的征途流程是固定的，但是具体的细节比如加珍珠还是加布丁，是可以根据具体需求选择的。
+
+```java
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+
+// 抽象模板：抽象文件解析器
+public abstract class AbstractFileParser {
+
+    /**
+     * 模板方法：定义文件解析的核心流程（算法骨架），用final修饰防止子类修改流程
+     * @param filePath 文件路径
+     * @return 解析并保存后的结果（成功/失败）
+     */
+    public final boolean parse(String filePath) {
+        try {
+            // 步骤1：读取文件（固定步骤，父类实现）
+            String content = readFile(filePath);
+            if (content == null || content.isEmpty()) {
+                System.out.println("文件内容为空，解析失败");
+                return false;
+            }
+
+            // 步骤2：解析内容（差异化步骤，抽象方法，子类实现）
+            Object parsedData = parseContent(content);
+
+            // 步骤3：验证数据（差异化步骤，钩子方法，子类可选重写）
+            if (!validateData(parsedData)) {
+                System.out.println("数据验证失败，解析失败");
+                return false;
+            }
+
+            // 步骤4：保存结果（固定步骤，父类实现）
+            boolean saveResult = saveResult(parsedData);
+            System.out.println(saveResult ? "文件解析成功" : "文件解析失败");
+            return saveResult;
+
+        } catch (IOException e) {
+            System.out.println("文件读取异常：" + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 固定步骤1：读取文件内容（所有解析器共用，父类实现）
+     */
+    private String readFile(String filePath) throws IOException {
+        System.out.println("开始读取文件：" + filePath);
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                content.append(line);
+            }
+        }
+        System.out.println("文件读取完成，内容长度：" + content.length());
+        return content.toString();
+    }
+
+    /**
+     * 抽象方法：解析文件内容（差异化步骤，子类必须实现）
+     * @param content 读取到的文件原始内容
+     * @return 解析后的结构化数据（如JSON对象、XML节点）
+     */
+    protected abstract Object parseContent(String content);
+
+    /**
+     * 钩子方法：验证解析后的数据（差异化步骤，提供默认实现，子类可选重写）
+     * @param data 解析后的结构化数据
+     * @return 验证结果（true=通过，false=不通过）
+     */
+    protected boolean validateData(Object data) {
+        System.out.println("执行默认数据验证（非空校验）");
+        return data != null; // 默认仅校验数据非空
+    }
+
+    /**
+     * 固定步骤4：保存解析结果（所有解析器共用，父类实现，假设保存到数据库）
+     */
+    private boolean saveResult(Object data) {
+        System.out.println("保存解析结果到数据库：" + data.toString());
+        // 模拟保存逻辑，实际场景可能涉及JDBC/ORM操作
+        return true;
+    }
+}
+```
+
+实际就是抽象父类定义一个执行顺序，每个步骤一个方法，子类可以选择使用父类的通用实现或者重写自己的定制化实现。
+
+模版模式适用于**多个算法流程结构相同，仅部分步骤实现不同**的情况，核心是：**抽取共性流程，暴露差异细节。**通过父类的模板方法固定算法骨架，让子类专注于实现差异化步骤，既保证了流程的标准化和代码复用，又保留了细节的灵活性。
+
+# 命令模式
+
+命令模式是**行为型模式**中专注于 “行为封装与请求解耦” 的模式，其核心目标是“将一个请求封装为一个对象，从而使你可用不同的请求对客户进行参数化；对请求排队或记录请求日志，以及支持可撤销的操作”。
+
+核心是**将 “请求的发送者” 与 “请求的接收者” 解耦**。如复制按钮与复制操作。
+
+命令模式适用于需要 “**解耦请求发送与接收**” 或 “**支持命令的高级操作（如撤销、日志）**” 的场景，![image.png](/images/posts/我个人的-后端学习-设计模式/设计模式-2.png)
+
+类似将军发布一个“命令”，由此命令去驱动士兵，而不是将军直接与某一士兵通信。
+
+具体命令类会聚合接收者，客户端实例化具体命令之后，执行命令。execute内部会调用接收者的具体方法。
+
+# 访问者模式
+
+访问者模式是**行为型模式**中专注于 “**数据结构与操作分离**” 的模式，其核心目标是 “**将作用于某种数据结构中的各元素的操作分离出来，封装成独立的访问者，使得操作可以在不改变数据结构的前提下灵活扩展**”。
+
+解决的核心问题：
+
+- 数据类既负责存储数据，又负责实现操作逻辑，职责过重，代码臃肿，违反单一职责原则。
+- 新增操作时，需修改所有数据类的代码，违反开闭原则。
+- 同类操作分散于各个数据类，难以集中管理维护。
+
+以 “电商库存系统” 为场景，展示访问者模式如何分离 “库存数据（商品、订单）” 与 “操作（计算总价、生成报表）”：
+
+```java
+// 1. 抽象元素：库存元素接口（所有具体元素需实现）
+public interface InventoryElement {
+    // 接受访问者的访问，将自身传递给访问者
+    void accept(InventoryVisitor visitor);
+}
+
+// 2. 抽象访问者：库存访问者接口（所有具体操作需实现）
+public interface InventoryVisitor {
+    // 访问商品元素
+    void visitGoods(Goods goods);
+    // 访问订单元素
+    void visitOrder(Order order);
+}
+
+// 7. 对象结构：库存管理器（管理商品和订单集合）
+public class InventoryManager {
+    private List<InventoryElement> elements = new ArrayList<>();
+
+    // 添加元素到库存
+    public void addElement(InventoryElement element) {
+        elements.add(element);
+    }
+
+    // 移除元素（可选）
+    public void removeElement(InventoryElement element) {
+        elements.remove(element);
+    }
+
+    // 让访问者遍历所有元素（核心方法）
+    public void acceptVisitor(InventoryVisitor visitor) {
+        for (InventoryElement element : elements) {
+            element.accept(visitor); // 每个元素接受访问者访问
+        }
+    }
+}
+```
+
+这个还是比较绕的，就是元素会提供一个accept方法，这个accept方法接收访问者。然后，有一个比较关键的操作是，具体元素会在accept方法中调用访问者访问自己的那个方法，并且把自己传进去。也就是说，在具体Order的accept里面，会写：visitor.visitOrder(this)， 这个是访问者模式的实现中比较复杂的部分。
+
+访问者模式适用于 “**数据结构稳定，但操作频繁变化**” 的场景。
+
+# 迭代器模式
+
+迭代器模式是**行为型模式**中专注于 “**集合对象遍历与访问解耦**” 的模式，其核心目标是 “**提供一种方法顺序访问一个聚合对象（集合）中的各个元素，而又不需要暴露该对象的内部表示**”。
+
+解决的问题：
+
+数据集合多样，结构各异，直接访问比较复杂。迭代器通过封装集合内部逻辑，隐藏结构差异，向外提供统一接口。
+
+本质是“**将遍历逻辑从集合中抽离，封装为独立的迭代器对象**”。
+
+迭代器模式适用于 “**需要遍历集合对象，且希望隐藏集合内部结构、统一遍历接口**” 的场景。
+
+这个就不具体讲了，一般用不到，而且我觉得相对好理解，就是提供一个接口，然后用具体类实现不同逻辑。
+
+# 观察者模式
+
+观察者模式是**行为型模式**中专注于 “**对象间一对多依赖关系与事件通知**” 的模式，其核心目标是 “**定义对象间的一种一对多依赖关系，使得当一个对象（被观察者）的状态发生改变时，所有依赖于它的对象（观察者）都能自动收到通知并作出响应**”。
+
+解决的核心问题：“**一个对象状态变化需要联动更新多个其他对象**”。如果直接硬编码会导致：耦合度极高，扩展性差、代码冗余，轮询性能差。
+
+这个就是Vue响应式的核心设计模式。应该好理解哈。主要看具体实现。
+
+## 实现
+
+核心是 “**被观察者管理观察者列表，状态变化时通过接口通知观察者**”。
+
+四个角色：抽象观察者/被观察者，具体观察者/被观察者。
+
+以 “天气预警系统” 为场景，展示观察者模式如何实现 “气象站（被观察者）状态变化时，自动通知手机 APP、预警系统、数据统计服务（观察者）”：
+
+```java
+// 1. 抽象被观察者：天气主题接口（定义被观察者的核心能力）
+public interface WeatherSubject {
+    // 注册观察者
+    void registerObserver(WeatherObserver observer);
+    // 移除观察者
+    void removeObserver(WeatherObserver observer);
+    // 通知所有已注册的观察者
+    void notifyObservers();
+}
+
+// 2. 抽象观察者：天气观察者接口（定义观察者的更新接口）
+public interface WeatherObserver {
+    // 接收被观察者的状态更新（参数为最新温度和湿度）
+    void update(float temperature, float humidity);
+}
+```
+
+具体观察者会持有被观察者实例，初始化时将自身注册给被观察者。被观察者会维护所有注册的观察者集合，当数据更新时，会调用所有观察者的update方法通知变更。
+
+## 两种形式
+
+推：
+
+上面的实现就是推，也就是被观察者直接将更新后的数据推给观察者。
+
+拉：
+
+被观察者只发送通知，表达更新了。由观察者主动获取数据。
+
+观察者模式适用于 “**存在一对多依赖关系，且需要在被观察者状态变化时自动通知观察者**” 的场景。
+
+## 与发布 - 订阅模式（Pub/Sub）的区别
+
+发布订阅模式（Publish-Subscribe Pattern，简称 Pub/Sub）是一种**广泛应用于解耦事件通信的设计思想**，但它**并非 GoF（Gang of Four，《设计模式：可复用面向对象软件的基础》）定义的 23 种经典设计模式之一**。不过，它与经典设计模式中的**观察者模式（Observer Pattern）高度相关**，本质上是观察者模式的 “扩展与优化版本”，常用于分布式系统、跨模块通信等场景。
+
+- **观察者模式**：
+
+- 属于 “**直接通信**”：被观察者直接持有观察者列表，通知时直接调用观察者接口，二者存在直接引用关系；
+- 通常是 “**同步通知**”：被观察者的`notifyObservers()`方法同步调用观察者的`update()`，直到所有观察者执行完成才返回；
+- 适用场景：同一进程内的对象间通信（如单个应用中的模块联动）。
+
+- **发布 - 订阅模式**：
+
+- 属于 “**间接通信**”：引入 “事件总线 / 消息代理” 中间层，发布者（类似被观察者）发布事件到中间层，订阅者（类似观察者）从中间层订阅事件，发布者与订阅者无直接引用；
+- 通常是 “**异步通知**”：发布者发布事件后立即返回，中间层异步将事件推送给订阅者；
+- 适用场景：分布式系统、跨进程通信（如微服务间的事件通知）。
+
+# 中介者模式
+
+中介者模式是**行为型模式**中专注于 “**解耦对象间多对多依赖**” 的模式，其核心目标是 “**定义一个中介者对象，使各对象无需直接相互引用，而是通过中介者进行交互，从而降低对象间的耦合度，简化系统交互逻辑**”。
+
+它就像生活中的 “项目经理”：一个项目组中有开发、测试、设计、产品等多个角色（对象），若各角色直接沟通，会形成复杂的交叉依赖（如开发需频繁找设计确认需求、找测试协调用例，测试需找产品确认验收标准）；而项目经理（中介者）的出现，让所有角色只需与项目经理交互 —— 开发向项目经理同步进度，测试向项目经理反馈问题，项目经理统一协调各方资源、传递信息。通过中介者，原本混乱的多对多交互被简化为 “各角色与中介者” 的一对多交互，系统复杂度大幅降低。
+
+中介者模式主要解决多个对象存在**多对多依赖关系**时，造成的耦合度极高、交互逻辑混乱、扩展性差、复用性低等特点。
+
+## 角色与结构
+
+四个角色，抽象中介者/同事对象，具体中介者/同事对象。核心是 “**同事对象依赖中介者，中介者协调同事对象**”。
+
+核心流程：
+
+1.  所有具体同事类在初始化时，都会持有抽象中介者的引用；
+2.  当一个同事对象状态变化（如灯光从 “OFF” 变为 “ON”）时，调用 `notifyMediator()` 通知中介者；
+3.  中介者收到通知后，根据预设的交互规则（如 “灯光开启则关闭窗帘”），调用其他同事对象的方法（如调用窗帘的 `setState("CLOSED")`）；
+4.  其他同事对象执行自身逻辑后，若状态变化，同样通过中介者通知其他对象，形成闭环协调。
+
+## 示例
+
+以 “智能家居系统” 为场景，展示中介者模式如何通过 “中控（中介者）” 协调 “灯光、空调、窗帘”（同事对象）的交互：
+
+```java
+// 1. 抽象中介者：智能家居中介者接口
+public interface SmartHomeMediator {
+    // 同事对象（设备）状态变化时，通知中介者
+    void deviceStateChanged(SmartDevice device);
+
+    // 通过中介者控制指定设备
+    void controlDevice(SmartDevice targetDevice, String command);
+
+    // 注册同事对象（设备）到中介者
+    void registerDevice(SmartDevice device);
+}
+
+// 2. 抽象同事类：智能设备抽象类
+public abstract class SmartDevice {
+    protected SmartHomeMediator mediator; // 持有中介者引用
+    protected String deviceName;          // 设备名称
+    protected String state;               // 设备状态（如ON/OFF、OPEN/CLOSED）
+
+    // 构造方法：初始化时传入中介者
+    public SmartDevice(SmartHomeMediator mediator, String deviceName) {
+        this.mediator = mediator;
+        this.deviceName = deviceName;
+        this.mediator.registerDevice(this); // 自动注册到中介者
+    }
+
+    // 抽象方法：设置设备状态
+    public abstract void setState(String state);
+
+    // 获取设备状态
+    public String getState() {
+        return state;
+    }
+
+    // 获取设备名称
+    public String getDeviceName() {
+        return deviceName;
+    }
+
+    // 状态变化时，通知中介者（核心：通过中介者协调其他设备）
+    protected void notifyMediator() {
+        System.out.println("[" + deviceName + "] 状态变更为：" + state + "，通知中控...");
+        mediator.deviceStateChanged(this);
+    }
+}
+```
+
+中介者模式适用于 “**对象间存在复杂多对多依赖，且需简化交互逻辑**” 的场景。
+
+# 备忘录模式
+
+备忘录模式是**行为型模式**中专注于 “**对象状态的捕获与恢复**” 的模式，其核心目标是 “**在不破坏对象封装性的前提下，捕获一个对象的内部状态，并在该对象之外保存这个状态，以便日后恢复该对象到原先保存的状态**”。
+
+类似于游戏存档。**安全存储对象状态，支持灵活的状态回溯**。
+
+解决的问题：
+
+直接暴露对象的内部状态会导致：破坏封装性、状态管理混乱耦合度高、历史状态不安全，易被篡改。
+
+## 核心角色与结构
+
+角色有：原始对象、备忘录、管理者。核心是 “**备忘录封装状态，原始对象创建 / 恢复备忘录，管理者管理备忘录历史**”。
+
+## 实现
+
+以 “文本编辑器的撤销功能” 为场景，展示备忘录模式如何保存和恢复编辑器的文本内容与光标位置：
+
+**核心逻辑**：
+
+1.  当需要保存状态时（如用户按下 “保存” 按钮），原始对象调用`createMemento()`创建备忘录，管理者调用`saveMemento()`将备忘录存入历史记录；
+2.  当需要恢复状态时（如用户按下 “撤销” 按钮），管理者调用`getLastMemento()`获取最近的备忘录，原始对象调用`restoreFromMemento()`从备忘录中恢复状态；
+3.  整个过程中，备忘录的内部状态仅对原始对象可见，客户端和管理者无法直接访问，保证了封装性和安全性。
+
+# 解释器模式
+
+解释器模式是**行为型模式**中专注于 “**特定语言文法解析与执行**” 的模式，其核心目标是 “**定义一种语言的文法规则，并用一个解释器来解释该语言中的句子（即符合文法规则的表达式），实现对特定格式数据的解析与处理**”。
+
+解决的核心问题：
+
+在开发中，当需要处理**重复出现的、具有固定格式的 “语言型数据”**时，直接通过硬编码解析逻辑会导致以下问题：代码冗余难以维护，扩展性差，可读性低。
+
+解释器模式通过 “**将文法规则抽象为对象层级结构**” 解决这些问题。
+
+- 把文法中的每一条规则（如 “数字是终结符”“加减运算是非终结符”）封装为一个 “表达式对象”；
+- 用 “组合模式” 构建表达式的抽象语法树（AST），直观体现文法的嵌套关系（如`1+2*3`对应 “加法表达式” 包含 “数字 1” 和 “乘法表达式”，“乘法表达式” 包含 “数字 2” 和 “数字 3”）；
+- 解释器通过遍历抽象语法树，递归执行每个表达式对象的解析逻辑，实现对整个句子的解释。
+
+## 角色与结构
+
+五个角色：抽象表达式、终结符表达式、非终结符表达式、上下文、客户端。
+
+**核心逻辑**：
+
+1.  客户端将输入的 “句子”（如`1+2*3`）按文法规则拆解，构建抽象语法树（AST）—— 根节点为`AddExpression`，左子节点为`NumberExpression(1)`，右子节点为`MultiplyExpression`（其下又包含`NumberExpression(2)`和`NumberExpression(3)`）；
+2.  客户端调用根节点的`interpret(context)`，触发递归解释：
+
+- `AddExpression`先调用左子节点`NumberExpression(1)`的`interpret()`，得到 1；
+- 再调用右子节点`MultiplyExpression`的`interpret()`，后者又调用其两个子节点的`interpret()`，得到 2 和 3，相乘得 6；
+- `AddExpression`将 1 和 6 相加，返回最终结果 7；
+
+3.  上下文在整个过程中提供辅助数据（如若表达式含变量`x+2*3`，上下文存储`x`的值供`NumberExpression`获取）。
+
+解释器模式的核心是 “**用对象表示文法规则，用抽象语法树表示句子，通过递归解释实现语义执行**”。它适用于处理简单、固定格式的 “语言型数据”（如表达式、配置指令），能够清晰地体现文法结构，便于扩展新规则。
+
+# 状态模式
+
+状态模式是**行为型模式**中专注于 “**对象状态与行为动态绑定**” 的模式，其核心目标是 “**当对象的内部状态发生改变时，它的行为也会随之改变，就像对象的类发生了变化一样**”。通过将对象的不同状态封装为独立的状态类，让状态的切换和对应的行为逻辑解耦，避免大量`if-else`或`switch-case`语句导致的代码臃肿。
+
+类似于电梯，按下不同的键有不同的行为。
+
+解决的核心问题：
+
+如果一个对象有多种状态，且行为会随状态改变。硬编码不同的执行逻辑（if-else），会导致：代码臃肿难维护、违反ocp、状态切换难以集中可控管理。
+
+状态模式通过 “**将状态封装为独立类，上下文委托状态对象处理行为**” 解决这些问题。
+
+## 角色与结构
+
+三个核心角色：上下文、抽象状态、具体状态。核心是 “**上下文委托当前状态对象处理行为，状态对象负责自身行为和状态切换**”。
+
+**核心逻辑**：
+
+1.  上下文初始化时，设置初始状态（如电梯初始为 “停止” 状态）；
+2.  客户端调用上下文的行为方法（如`elevator.pressFloorButton(10)`）；
+3.  上下文委托当前状态对象处理该行为（`currentState.handleFloorButton(this, 10)`）；
+4.  具体状态类在方法中执行对应行为逻辑（如`StopState`判断目标楼层，决定切换到`UpState`）；
+5.  若需切换状态，具体状态类调用上下文的`setCurrentState()`方法，更新上下文的当前状态；
+6.  后续客户端调用上下文方法时，将由新的状态对象处理行为。
+
+## 示例
+
+以电商订单的状态流转为场景，展示状态模式的实现：
+
+抽象状态声明了所有状态可能发生的所有操作。每个具体状态实现抽象状态。上下文直接与客户端交互，保存当前状态，客户端调用上下文的方法，上下文的方法内部调用保存的当前状态实例的方法，状态实例内部会在合适时机调用上下文的切换状态方法。
+
+# 策略模式
+
+策略模式是**行为型模式**中专注于 “**算法的封装与动态切换**” 的模式，其核心目标是 “**定义一系列可替换的算法（策略），将每个算法封装到独立的类中，使得算法可以在不修改客户端代码的前提下动态切换，从而避免用大量**`**if-else**`**或**`**switch-case**`**语句硬编码算法选择逻辑**”。
+
+类似于出行方式的选择，打车、公交、骑行。目的是一样的，都是达到目的地，但是具体策略（算法）不同。
+
+策略模式 “**将算法封装为独立策略类，客户端通过策略接口与算法交互**”。
+
+## 角色与结构
+
+三个核心角色：策略接口、具体策略、上下文。
+
+**核心逻辑**：
+
+1.  客户端根据业务场景（如用户选择 “微信支付”），创建对应的具体策略对象（`WechatPayment`）；
+2.  客户端将策略对象设置到上下文（`orderPayment.setPaymentStrategy(wechatPayment)`）；
+3.  客户端调用上下文的业务方法（`orderPayment.processPayment(100.0)`）；
+4.  上下文委托当前策略对象执行算法（`currentStrategy.pay(100.0)`），完成支付；
+5.  若需切换策略（如用户改为 “支付宝支付”），客户端只需创建`AlipayPayment`对象并重新设置到上下文，无需修改其他代码。
+
+和上一个类似，也是上下文持有当前策略，但是是个接口引用，同时提供给客户端指定具体策略的接口。
+
+策略模式适用于 “**存在多种算法可选，且需动态切换，或需避免大量条件判断**” 的场景。
+
+## 策略模式和状态模式
+
+| **维度**       | **策略模式（Strategy）**                                             | **状态模式（State）**                                                                     |
+| -------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **核心目标**   | 解决 “**同一问题的多种算法选择**”，算法独立且可替换                  | 解决 “**状态变化导致行为变化**”，行为与状态强绑定                                         |
+| **对象关系**   | 策略对象之间**相互独立**（如微信支付与支付宝支付无依赖）             | 状态对象之间**存在依赖**（如 “待支付” 可切换到 “已支付”）                                 |
+| **客户端职责** | 客户端需**主动选择**策略（如用户选择支付方式），策略切换由客户端触发 | 客户端无需关心状态，只需触发行为（如调用`pay()`&lt;br>），状态切换由状态类或上下文控制    |
+| **行为逻辑**   | 策略的行为是 “**解决同一目标的不同手段**”（如不同方式完成支付）      | 状态的行为是 “**对象在特定状态下的固有行为**”（如订单 “待支付” 状态下只能执行支付或取消） |
+
+状态模式和策略模式的区别更像是选择粒度上的差异，策略模式是对整个算法（或整个系统）的选择，而状态模式是对某个系统内部的各个状态的选择与切换（这个是系统内部的问题，与客户端无关）。
+
+# 职责链模式
+
+职责链模式是**行为型模式**中专注于 “**请求传递与处理解耦**” 的模式，其核心目标是 “**将多个请求处理器（Handler）连成一条链，当请求发出时，沿着链依次传递，直到被某个处理器处理或到达链的末端**”。通过这种方式，请求的发送者无需知道具体由哪个处理器处理，实现发送者与处理者的解耦。
+
+主要的作用就是发送者只要沿着链发下去就行了，不能处理的自然会继续向后传，可以实现请求发送者和处理者解耦。
+
+## 角色与结构
+
+三个核心角色：抽象处理器、具体处理器、客户端。
+
+**核心逻辑**：
+
+1.  客户端构建处理器链（如 A→B→C）；
+2.  客户端将请求发送给链的第一个处理器 A；
+3.  处理器 A 判断是否能处理请求：
+
+- 能处理：直接处理，流程结束；
+- 不能处理：调用下一个处理器 B 的`handleRequest()`，将请求传递给 B；
+
+4.  处理器 B 重复步骤 3，直到请求被处理或到达链的末端（如 C 不能处理且无下一个处理器，请求未被处理）。
+
+职责链的构建是客户端编码的。
+
+```java
+// 2. 构建职责链：部门主管 → 人力资源经理 → 总经理
+deptHead.setNextApprover(hrManager);
+hrManager.setNextApprover(genManager);
+```
+
+职责链模式适用于 “**请求需要经过多个处理器处理，且处理器存在层级关系或顺序关系，需解耦发送者与处理者**” 的场景。
+
+职责链模式的核心是 “**请求沿链传递，处理者自主决策**”，通过将多个处理者连成链，实现请求发送者与处理者的解耦，让系统能灵活调整处理流程。
+
+​

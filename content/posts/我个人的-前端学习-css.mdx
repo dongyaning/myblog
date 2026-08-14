@@ -1,0 +1,176 @@
+---
+title: 'CSS'
+date: '2025-09-05'
+updated: '2025-09-05'
+description: 'bfc bfc的本质作用： - 浮动被完全包含； - 盒子整体避让外部浮动； - margin 折叠仅限于该上下文内部； - 父盒子有border时不会折叠 - 内部布局与外部隔离。 现代 css 中，如果只是为了“创建 bfc 来解决布局'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# BFC
+
+BFC的本质作用：
+
+- 浮动被完全包含；
+- 盒子整体避让外部浮动；
+- margin 折叠仅限于该上下文内部；
+
+- 父盒子有border时不会折叠
+
+- 内部布局与外部隔离。
+
+现代 CSS 中，如果只是为了“创建 BFC 来解决布局问题”，优先使用语义清晰的 display: flow-root：
+
+```css
+.container {
+  display: flow-root; /* 专为创建 BFC 设计，无副作用 */
+}
+```
+
+# 清除浮动
+
+这个名字有歧义，实际上不是清除浮动，而是清除浮动的负面效果，主要就是高度塌陷。
+
+方法一般就是BFC、显示的div + clear: both、clearfix(伪元素+clear)
+
+clear: both; 的意思就是表示：**该元素不能与任何左右浮动元素处于同一行**。
+
+会强制换到浮动元素下方，从而“撑开”父容器。
+
+```css
+/* clearfix */
+.clearfix:after {
+  content: '.';
+  height: 0;
+  clear: both;
+  display: block;
+  visibility: hidden;
+}
+```
+
+clearfix是推荐的，不会引入css和html的副作用。
+
+# position: fixed
+
+一般情况下，设置 fixed 之后，top/left 等属性就是相对于浏览器视口的。
+
+但是如果**给祖先元素设置了 transform 属性**，就是相对于该祖先元素定位了！
+
+# 浏览器渲染更新过程 & 回流重绘
+
+### 浏览器渲染的“六剑客”阶段
+
+浏览器从获取 HTML 到最终在屏幕上画出像素，通常经历以下流程：
+
+1.  **构建 DOM 树**：解析 HTML，把标签变成一棵树状结构。
+2.  **构建 CSSOM 树**：解析 CSS，算清楚每个选择器对应的样式。
+3.  **生成渲染树 (Render Tree)**：把 DOM 和 CSSOM 合并。注意：`display: none` 的元素不会进渲染树。
+4.  **布局 (Layout/Reflow)**：计算每个节点在屏幕上的确切**几何位置和大小**。
+5.  **绘制 (Paint/Repaint)**：把像素点涂在屏幕上（包括颜色、阴影、边框等）。
+6.  **合成 (Composite)**：把不同的图层（Layer）按顺序叠加在一起，显示给用户。
+
+当后续通过 js 更新 DOM 或样式时，会经过：
+
+**JS 变化** → **1\.** **样式计算 (Recalculate Style)** → **2\. 布局 (Layout/Reflow)** → **3\. 分层 (Layer)** → **4\. 绘制 (Paint/Repaint)**→ **5\. 合成 (Composite)**
+
+- **样式计算阶段**：这就是在**更新那三棵树**（CSSOM 和 Render Tree）。浏览器必须先根据你的修改，算出每个元素最新的样式是什么。
+- **回流（Reflow）**：指流水线从 **第 2 步（布局）** 开始往下跑。
+- **重绘（Repaint）**：指流水线跳过第 2、3 步，直接从 **第 4 步（绘制）** 开始往下跑。
+
+# CSS 硬件加速（GPU 加速）
+
+- `transform`（当 `3D` 变换的样式出现时会使用 `GPU` 加速）
+- `opacity`
+- `filter`
+- `will-change`
+
+# Tailwind CSS
+
+tailwind css 的优势如下：
+
+- 告别“起名困难症”，不需要再给 class 取名了。
+- 编写起来也更方便一些，H5 文档和 CSS 样式在一起，不需要两个文件之间来回找了。而且不依赖于具体框架，React 能用，Vue 也能用，不用框架也能用。
+- 借助 JIT 引擎，Tailwind 会扫描代码，只生成用到的 CSS，而且原子类是公共可复用的，即使项目很大，最终的 CSS 文件也能保持在一个可控的范围内。
+- Tailwind 官方定义了一套设计规范，有助于项目整体的风格一致和规范性。
+- 提供了方便的响应式写法，告别了传统复杂的媒体查询。
+- Tailwind CSS 的样式是平铺的，几乎不存在样式冲突问题。
+
+# 动画
+
+动画可以分为两大体系：**隐式动画 Transition 和显式动画 Animation**。
+
+| **特性**     | **Transition (过渡)**                          | **Animation (动画)**                   |
+| ------------ | ---------------------------------------------- | -------------------------------------- |
+| **触发条件** | 需要状态改变（如 `:hover`&lt;br>或 JS 改类名） | 可以自动运行，也可以循环               |
+| **复杂度**   | 只有起始和结束两个状态                         | 可以通过关键帧定义任意多个状态         |
+| **控制力**   | 简单、一次性                                   | 强大，可暂停、反向播放、设置循环次数   |
+| **适用场景** | 简单的交互效果（按钮变色、菜单滑出）           | 复杂的循环动画（加载进度条、旋转地球） |
+
+Transition 过渡是比较简单的动画形式，只是告诉浏览器：如果这个属性变了，请在一段时间内慢慢变。
+
+```javascript
+transition: property duration timing-function delay;
+```
+
+Animation 通过`@Keyframes`定义整套动作。
+
+```javascript
+// 定义整套动作
+@keyframes slideIn {
+  0% { transform: translateX(-100%); opacity: 0; }
+  50% { opacity: 0.5; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+// 调用动画
+.box {
+  animation: slideIn 2s ease-in-out 1s infinite alternate forwards;
+}
+```
+
+## 核心子属性解析
+
+- `**animation-fill-mode**`: 决定动画结束后的状态。
+
+- `forwards`: 停在最后一帧（非常常用）。
+- `backwards`: 回到第一帧。
+
+- `**animation-direction**`:
+
+- `alternate`: 奇数次正向，偶数次反向（让动画看起来更平滑）。
+
+- `**animation-play-state**`:
+
+- `paused` / `running`: 可以通过 JS 控制动画的**暂停与继续**。
+
+## 动画性能
+
+- 坚持合成层原则，避免使用宽高定位等属性改变元素位置，而是使用 transform 和 opacity，这两个属性会直接进入 GPU 合成层，不触发重排和重绘。
+- will-change(不可滥用)
+- transform: translateZ(0)开启硬件加速。
+
+## 合成层
+
+“合成”这个动作，就是在 GPU 中根据元素的层级（z-index）和位置，把这些已经画好的位图快速合并成一帧画面的过程。
+
+触发合成层的情况：
+
+- **使用 3D 变换**：`transform: translateZ(0)` 或 `translate3d()`。
+- **使用** `**will-change**` **属性**：比如 `will-change: transform;`（这是官方推荐的“打招呼”方式）。
+- **对** `**opacity**`**、**`**transform**`**、**`**filter**` **应用了** `**transition**` **或** `**animation**`。
+- `**&lt;video>**`**、**`**&lt;iframe>**`**、**`**&lt;canvas>**` **元素**。
+- **层叠等级（z-index）太高**：如果一个普通元素压在了一个合成层上面，那么这个普通元素也会被迫提升为合成层（这叫**层爆炸**，需要警惕）。
+
+图层的确立发生在布局和绘制之间，浏览器渲染流程：
+
+- **DOM + CSSOM** → **Render Tree**（渲染树，确定显示什么）
+- **Layout**（布局，确定位置大小）
+- **Layer Tree（确定图层，就是这一步！）**
+- **Paint**（绘制指令，确定怎么画）
+- **Composite**（合成，真正把图贴上去）
+
+#### 具体的确定时机：
+
+在 **Layout（布局）之后，Paint（绘制）之前**。 当浏览器计算好了每个元素的位置和大小后，它会遍历一次布局树，根据特定的“提升规则”（比如我们昨天说的 `transform`、`will-change` 等）来决定哪些元素应该拥有自己的“合成层”。
+
+**它是动态确定的吗？** 是的。如果你通过 JS 动态给一个元素添加了 `will-change: transform`，浏览器会立即触发一次“层树更新（Update Layer Tree）”，把这个元素从原来的层里剥离出来，塞进一个新层。

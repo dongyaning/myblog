@@ -1,0 +1,97 @@
+---
+title: 'RocketMQ'
+date: '2023-04-01'
+updated: '2023-04-01'
+description: 'rocketmq 的消息模型 总结来说，rocketmq 通过使用在一个 topic 中配置多个队列并且每个队列维护每个消费者组的消费位置 实现了 主题模式/发布订阅模式 。 image.pngassets/rocketmq-1.png 技'
+published: true
+category: '后端学习'
+tags: ['消息队列']
+---
+
+# RocketMQ 的消息模型
+
+总结来说，`RocketMQ` 通过**使用在一个** `**Topic**` **中配置多个队列并且每个队列维护每个消费者组的消费位置** 实现了 **主题模式/发布订阅模式** 。
+
+![image.png](/images/posts/后端学习-消息队列-rocketmq/rocketmq-1.png)
+
+# 技术架构
+
+四大组件：
+
+1.  Broker：消息的服务器。生产者生产消息到 broker，消费者到 broker 拉取数据。
+
+1.  Broker、Topic、队列关系：
+
+1.  一个 Topic 可以有多个队列。
+1.  同一个 Topic 的不同队列尽量分布在不同 Broker，以减轻单一 Broekr 的压力（要配置多个 broker）。
+1.  那自然，broekr 内可能有很多 Topic 的队列。
+
+1.  NameServer：注册中心，负责 Broker 管理和路由信息管理。
+
+1.  ​
+
+1.  Producer
+1.  Consumer
+
+![image.png](/images/posts/后端学习-消息队列-rocketmq/rocketmq-2.png)
+
+这个图是官方的，注意其中一些细节：
+
+- 四个组件都是集群，特别注意 Broker 是主从架构，主要是为了实现高可用，主从之间复制数据，平时只用主 Broker，如果 `master` 宕机，**则** `**slave**` **提供消费服务，但是不能写入消息**。（挺吃内存的）。
+- 在生产者需要向 `Broker` 发送消息的时候，**需要先从** `**NameServer**` **获取关于** `**Broker**` **的路由信息**，然后通过 **轮询** 的方法去向每个队列中生产数据以达到 **负载均衡** 的效果。
+- 消费者通过 `NameServer` 获取所有 `Broker` 的路由信息后，向 `Broker` 发送 `Pull` 请求来获取消息数据。`Consumer` 可以以两种模式启动—— **广播（Broadcast）和集群（Cluster）**。广播模式下，一条消息会发送给 **同一个消费组中的所有消费者** ，集群模式下消息只会发送给一个消费者。
+
+# 功能特性
+
+## 定时消息
+
+定时消息仅支持在 MessageType 为 Delay 的主题内使用，即定时消息只能发送至类型为定时消息的主题中。
+
+消息被发送到服务端，和普通消息不同的是，服务端不会直接构建消息索引，而是会将定时消息**单独存储在定时存储系统中**，等待定时时刻到达。定时时刻到达后，服务端将消息重新写入普通存储引擎，对下游消费者可见，等待消费者消费的状态。
+
+## 顺序消息
+
+顺序消息仅支持使用 MessageType 为 FIFO 的主题，即顺序消息只能发送至类型为顺序消息的主题中。
+
+## 顺序消费
+
+顺序消费的实现有普通顺序和严格顺序，实际上我们并不太需要严格顺序，而且实现起来成本很大。
+
+对于普通顺序，我们只需要保证“同一个业务逻辑”的消息被放到同一个队列（队列天生就是顺序的）。
+
+具体可以通过自定义负载均衡，实现 MessageQueueSelector 接口。
+
+```java
+producer.send(msg, new MessageQueueSelector() {
+    @Override
+    public MessageQueue select(List<MessageQueue> mqs, Message msg, Object arg) {
+        String orderId = (String) arg;
+        int index = orderId.hashCode() % mqs.size(); // 保证相同 orderId 落到同一队列
+        return mqs.get(index);
+    }
+}, orderId);
+
+// 实现 orderId 相同的消息被放入同一个队列。
+```
+
+消费者端需要注册 MessageListenerOrderly，rctmq 会保证同一个队列的消息顺序消费，不会并发处理。
+
+```java
+consumer.registerMessageListener(new MessageListenerOrderly() {
+    @Override
+    public ConsumeOrderlyStatus consumeMessage(List<MessageExt> msgs, ConsumeOrderlyContext context) {
+        for (MessageExt msg : msgs) {
+            // 串行处理每条消息（需幂等）
+        }
+        return ConsumeOrderlyStatus.SUCCESS;
+    }
+});
+```
+
+## 过滤消息
+
+生产者带上 tag。
+
+消费者通过 selectorExpression 过滤 tag。
+
+​

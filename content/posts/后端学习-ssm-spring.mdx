@@ -1,0 +1,629 @@
+---
+title: 'Spring'
+date: '2024-03-28'
+updated: '2024-03-28'
+description: '我们一般说 spring 框架指的都是 spring framework，它是很多模块的集合，使用这些模块可以很方便地协助我们进行开发，比如说 spring 支持 ioc（inversion of control:控制反转） 和 aopas'
+published: true
+category: '后端学习'
+tags: ['ssm']
+---
+
+我们一般说 Spring 框架指的都是 Spring Framework，它是很多模块的集合，使用这些模块可以很方便地协助我们进行开发，比如说 Spring 支持 IoC（Inversion of Control:控制反转） 和 AOP(Aspect-Oriented Programming:面向切面编程)、可以很方便地对数据库进行访问、可以很方便地集成第三方组件（电子邮件，任务，调度，缓存等等）、对单元测试支持比较好、支持 RESTful Java 应用程序的开发。
+
+Spring 最核心的思想就是不重新造轮子，开箱即用，提高开发效率。
+
+Spring 5.x 结构：
+
+## ![image.png](/images/posts/后端学习-ssm-spring/spring-1.png)
+
+# IoC（Inversion of Control）
+
+控制反转是Spring框架的核心设计理念之一，它描述了一种对象之间依赖关系的管理方式。传统开发中，对象会主动创建自己依赖的对象，而在IoC下，对象的创建和依赖关系的管理控制权被反转给了外部容器。由 IoC 容器统一管理对象的创建、配置和依赖注入以及生命周期的管理。
+
+IoC是一种设计理念，其本质与框架无关。只是Spring实现了这种理念，并提供了用于管理对象的外部容器，如ApplicationContext。
+
+**IoC的本质：控制的外部化（外部指的是某Java类的外部）**
+
+- IoC的核心是将对象的创建权从类内部转移到外部。
+- 只要满足：对象不是自己创建依赖，依赖从外部提供，就是IoC。
+
+**Spring 相当于帮我们做了相关依赖的创建和注入工作，省去了这些麻烦，从而简化并规范了代码。**
+
+**Spring帮我们做了什么：**
+
+- **自动扫描组件**
+- **自动创建Bean**
+- **自动注入依赖**
+- **管理生命周期**
+- **处理复杂依赖图**
+
+**优势：简化代码、配置集中化、一致性、可测试性提升**
+
+## IoC的实现方式
+
+**通过依赖注入（DI，Dependency Injection），IoC是目的，DI是手段。**
+
+- **构造器注入（推荐使用）**
+
+```java
+public class UserService {
+    private UserRepository userRepository;
+    // 构造器注入
+    public UserService(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
+    // 使用userRepository...
+}
+```
+
+- **Setter方法注入**
+- **注解注入（@**Autowired/@Inject**）**
+
+- 简洁且推荐使用
+
+## 核心组件
+
+- BeanFactory：最基础的IoC容器接口
+- ApplicationContext：继承自BeanFactory
+
+- 常用实现：
+- ClassPathXmlApplicationContext：类路径加载配置，xml方式
+- AnnotationConfigApplicationContext：注解方式，传入配置类
+
+- BeanDefinition
+
+- 元数据，描述Bean本身
+
+- Bean生命周期
+
+```latex
+实例化Bean → 设置属性 → 初始化前(PostProcessBeforeInitialization) →
+调用初始化方法(init-method) → 初始化后(PostProcessAfterInitialization) →
+投入使用 → 容器关闭前(PostProcessBeforeDestruction) →
+调用销毁方法(destroy-method) → 销毁Bean
+```
+
+Spring 中，IoC 容器实际上就是个 Map（key，value），Map 中存放的是各种对象。
+
+## Spring Bean
+
+简单来说，Bean 代指的就是那些被 IoC 容器所管理的对象。
+
+我们需要告诉 IoC 容器帮助我们管理哪些对象，这个是通过配置元数据来定义的。配置元数据可以是 **XML 文件、注解或者 Java 配置类。**
+
+### 将一个类声明为 Bean 的注解
+
+- `@Component`：通用的注解，可标注任意类为 `Spring` 组件。如果一个 Bean 不知道属于哪个层，可以使用`@Component` 注解标注。
+- `@Repository` : 对应持久层即 Dao 层，主要用于数据库相关操作。
+- `@Service` : 对应服务层，主要涉及一些复杂的逻辑，需要用到 Dao 层。
+- `@Controller` : 对应 Spring MVC 控制层，主要用于接受用户请求并调用 `Service` 层返回数据给前端页面。
+
+### @Component 和 @Bean
+
+- 前者作用于子类，后者作用于类。
+- Bean 是配合配置类写的（不写到配置类里面也行，但是会有一些问题）。
+- Bean 比 Component 注解的自定义性更强，而且引用第三方库中的类需要装配到 Spring 容器等场景，只能通过 Bean 实现。
+
+```java
+@Bean
+public OneService getService(status) {
+    case (status)  {
+        when 1:
+                return new serviceImpl1();
+        when 2:
+                return new serviceImpl2();
+        when 3:
+                return new serviceImpl3();
+    }
+}
+```
+
+### Bean 是否线程安全
+
+考虑最常用的 prototype 和 singleton（最常用，默认）。
+
+对于 prototype，每次获取都是新的实例，不存在资源竞争，是线程安全的。
+
+对于 singleton，因为只有一个实例，原则上是线程不安全的。但是如果 Bean 是无状态的（很多 Bean 都是无状态的，无状态指的是没有定义可变的成员变量），就是线程安全的，否则就不是线程安全的。
+
+对于有状态的单例 Bean，保证线程安全的方法：
+
+1.  避免可变成员变量，设计 Bean 为无状态。
+2.  使用 ThreadLocal，线程独立，消除资源竞争。
+3.  使用同步机制，加锁。
+
+### Bean 生命周期
+
+![image.png](/images/posts/后端学习-ssm-spring/spring-2.png)
+
+```java
+@Component
+public class LifecycleDemoBean implements ApplicationContextAware, InitializingBean, DisposableBean {
+
+    private String name;
+
+    // 1. 构造器（实例化）
+    public LifecycleDemoBean() {
+        System.out.println("1. 构造器调用");
+    }
+
+    // 2. 依赖注入（假设 name 通过 @Value 注入）
+    @Value("${app.name:default}")
+    public void setName(String name) {
+        this.name = name;
+        System.out.println("2. 依赖注入完成: name=" + name);
+    }
+
+    // 3. Aware 回调
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) {
+        System.out.println("3. ApplicationContextAware 回调");
+    }
+
+    // 5. 初始化（方式2）
+    @Override
+    public void afterPropertiesSet() {
+        System.out.println("5. InitializingBean 初始化");
+    }
+
+    // 5. 初始化（方式1，更推荐）
+    @PostConstruct
+    public void postConstruct() {
+        System.out.println("5. @PostConstruct 初始化");
+    }
+
+    // 8. 销毁（方式2）
+    @Override
+    public void destroy() {
+        System.out.println("8. DisposableBean 销毁");
+    }
+
+    // 8. 销毁（方式1，更推荐）
+    @PreDestroy
+    public void preDestroy() {
+        System.out.println("8. @PreDestroy 销毁");
+    }
+}
+```
+
+整体就是图上说的四个阶段：
+
+1.  实例化
+2.  属性赋值
+3.  初始化
+4.  销毁
+
+后面的细节都是具体的初始化/销毁的不同方法（不同方法间有相对顺序，但一般选择一个使用即可）。
+
+- 初始化的具体操作，有 Aware 接口的依赖注入、BeanPostProcessor 在初始化前后的处理以及 InitializingBean 和 init-method 的初始化操作；
+- 销毁的具体操作，有注册相关销毁回调接口，最后通过DisposableBean 和 destory-method 进行销毁。
+
+## 依赖注入方式
+
+### xml配置文件方式
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!-- Bean定义 -->
+    <bean id="userService" class="com.example.service.UserServiceImpl">
+        <!-- 依赖注入 -->
+        <property name="userRepository" ref="userRepository"/>
+    </bean>
+
+    <bean id="userRepository" class="com.example.repository.UserRepositoryImpl"/>
+</beans>
+```
+
+#### 构造器注入
+
+```xml
+<bean id="orderService" class="com.example.service.OrderService">
+    <constructor-arg ref="productRepository"/> // ref是其它的bean的id
+    <constructor-arg ref="paymentService"/>
+</bean>
+```
+
+#### Setter注入
+
+```xml
+<bean id="userService" class="com.example.service.UserService">
+    <property name="userRepository" ref="userRepository"/>
+    <property name="maxResults" value="10"/>
+</bean>
+```
+
+#### 集合注入
+
+```xml
+<bean id="shoppingCart" class="com.example.ShoppingCart">
+    <property name="items">
+        <list>
+            <ref bean="item1"/>
+            <ref bean="item2"/>
+        </list>
+    </property>
+</bean>
+```
+
+### 注解方式
+
+- `@Component`：通用的 Bean 定义注解
+- `@Repository`：数据访问层 Bean
+- `@Service`：业务逻辑层 Bean
+- `@Controller`：Web 控制器 Bean
+- `@Autowired`：自动装配依赖
+- `@Qualifier`：指定具体实现
+- `@Resource`：JSR-250 标准注解
+- `@Value`：注入属性值
+
+### 存在多个相同接口类型的Bean
+
+- 使用Qualifier或Resource指定Bean的id
+
+- Qualifier需要配合Autowired
+- Resource不需要
+
+- 使用Primary标记某个Bean为首选实现
+
+- Primary对原型Bean无效！
+
+- 注入所有实现，在Service代码中遍历，使用某个可行的
+
+### @Autowired 和 @Resources
+
+- `@Autowired` 是 Spring 提供的注解，`@Resource` 是 JDK 提供的注解。
+- `Autowired` 默认的注入方式为`byType`（根据类型进行匹配），`@Resource`默认注入方式为 `byName`（根据名称进行匹配）。
+- 当一个接口存在多个实现类的情况下，`@Autowired` 和`@Resource`都需要通过名称才能正确匹配到对应的 Bean。`Autowired` 可以通过 `@Qualifier` 注解来显式指定名称，`@Resource`可以通过 `name` 属性来显式指定名称。
+- `@Autowired` 支持在构造函数、方法、字段和参数上使用。`@Resource` 主要用于字段和方法上的注入，不支持在构造函数或参数上使用。
+
+### 作用域
+
+默认是单例作用域singleton，其它的可以通过Scope指定
+
+| **作用域**    | **生命周期**                         | **应用场景**               | **线程安全要求** |
+| ------------- | ------------------------------------ | -------------------------- | ---------------- |
+| `singleton`   | 容器启动时创建，容器销毁时销毁       | 无状态服务、全局管理器     | 需要             |
+| `prototype`   | 每次请求创建，客户端管理销毁         | 有状态对象、非线程安全组件 | 不需要           |
+| `request`     | HTTP 请求开始时创建，请求结束时销毁  | 请求级数据、临时计算结果   | 不需要           |
+| `session`     | HTTP 会话创建时创建，会话过期时销毁  | 用户会话数据、购物车       | 需要             |
+| `application` | Web 应用启动时创建，应用停止时销毁   | 全局统计、应用配置         | 需要             |
+| `websocket`   | WebSocket 连接建立时创建，断开时销毁 | 实时通信会话、推送服务     | 需要             |
+
+## AOP
+
+AOP（Aspect-Oriented Programming，面向切面编程）是一种编程范式，旨在将程序中的横切关注点（如日志、事务、权限控制等）与业务逻辑分离，以提高代码复用性和可维护性。
+
+### 核心概念
+
+- 切面（Aspect）
+
+- 封装横切逻辑的类，定义了切面的行为（通知）和作用位置（切入点）。例如：日志记录切面、事务管理切面。
+
+- 通知（Advice）
+
+- 切面中定义的具体操作：
+
+- 前置通知（@Before）：目标方法执行前调用
+- 后置通知（at After）：无论是否异常
+- 返回通知（at AfterReturning）：正常返回后
+- 异常通知：（at AfterThrowing）：抛出异常后
+- 环绕通知（at Around）：包裹目标方法，可控制方法的执行，如提前/延迟执行，修改返回值
+- ![image.png](/images/posts/后端学习-ssm-spring/spring-3.png)
+
+- 连接点（JointPoint）
+
+- 程序执行中的特定点
+
+- 切入点（PointCut）
+
+- 定义通知作用的具体位置
+
+- 织入（Weaving）
+
+- 将切面应用到目标对象的过程，分为编译时、类加载时和运行时织入。Spring 使用**运行时织入**（动态代理）。
+
+### Spring AOP的实现原理
+
+Spring AOP基于**动态代理**实现，根据目标对象是否实现接口选择不同的代理方式。
+
+1.  **JDK 动态代理**
+
+- 基于接口实现，生成实现相同接口的代理类。
+- 适用于目标对象实现接口的场景。
+
+2.  **CGLIB 代理**
+
+- 基于类继承，生成目标类的子类作为代理类。
+- 适用于目标对象没有实现接口的场景（需添加`cglib`依赖）。
+
+3.  **代理选择规则**
+
+- 若目标对象实现接口，优先使用 JDK 动态代理。
+- 若未实现接口，自动切换为 CGLIB 代理（Spring 4.0 + 默认集成 CGLIB）。
+
+### 应用场景
+
+AOP适用于处理与业务逻辑解耦的横切需求。
+
+- **日志记录**：记录方法调用入参、返回值和执行时间。
+- **事务管理**：自动开启和提交数据库事务。
+- **权限控制**：验证用户权限是否允许访问方法。
+- **缓存处理**：方法调用前后操作缓存（如查询缓存、更新缓存）。
+- **异常处理**：统一捕获和处理业务异常。
+- **性能监控**：统计方法执行耗时，用于性能优化。
+
+### 配置
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-aop</artifactId>
+</dependency>
+```
+
+```java
+import org.aspectj.lang.JoinPoint;
+import org.aspectj.lang.ProceedingJoinPoint;
+import org.aspectj.lang.annotation.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Component  // 声明为Spring组件
+@Aspect     // 声明为切面
+public class LogAspect {
+    private static final Logger logger = LoggerFactory.getLogger(LogAspect.class);
+
+    // 定义切入点表达式：匹配com.example.service包下所有方法
+    @Pointcut("execution(* com.example.service..*.*(..))")
+    public void servicePointcut() {}
+
+    // 前置通知：记录方法开始执行
+    @Before("servicePointcut()")
+    public void before(JoinPoint joinPoint) {
+        String methodName = joinPoint.getSignature().getName();
+        Object[] args = joinPoint.getArgs();
+        logger.info("方法 {} 开始执行，参数：{}", methodName, Arrays.toString(args));
+    }
+
+    // 环绕通知：记录方法执行时间
+    @Around("servicePointcut()")
+    public Object around(ProceedingJoinPoint pjp) throws Throwable {
+        long start = System.currentTimeMillis();
+        try {
+            // 执行目标方法
+            Object result = pjp.proceed();
+            long end = System.currentTimeMillis();
+            logger.info("方法执行耗时：{}ms", end - start);
+            return result;
+        } catch (Exception e) {
+            logger.error("方法执行异常", e);
+            throw e;
+        }
+    }
+
+    // 返回通知：记录正常返回结果
+    @AfterReturning(pointcut = "servicePointcut()", returning = "result")
+    public void afterReturning(Object result) {
+        logger.info("方法正常返回，结果：{}", result);
+    }
+
+    // 异常通知：记录异常信息
+    @AfterThrowing(pointcut = "servicePointcut()", throwing = "ex")
+    public void afterThrowing(Exception ex) {
+        logger.error("方法执行抛出异常", ex);
+    }
+
+    // 后置通知：无论是否异常都执行
+    @After("servicePointcut()")
+    public void after() {
+        logger.info("方法执行完毕");
+    }
+}
+```
+
+在 Spring Boot 应用中，AOP 默认自动启用；若为传统 Spring 项目，需在配置类中添加：
+
+```java
+@Configuration
+@EnableAspectJAutoProxy  // 启用AOP注解支持
+public class AppConfig {
+    // 其他配置...
+}
+```
+
+切点表达式：
+
+```plain
+execution([修饰符] 返回类型 [包路径.类名.]方法名(参数类型))
+```
+
+- 示例：
+
+- `execution(* com.example.*.*(..))`：匹配`com.example`包下所有类的所有方法。
+- `execution(* com.example.service.UserService.*(String, ..))`：匹配`UserService`中第一个参数为 String 的方法。
+- `@annotation(com.example.annotation.Loggable)`：匹配被`@Loggable`注解标注的方法。
+
+```java
+@Aspect
+@Order(3) // Order注解控制多个切面的执行顺序，值越小优先级越高，也可以实现Ordered接口
+@Component
+public class LogExecutionTimeAspect {
+
+    // 定义切入点：所有 com.example.service 包下的 public 方法
+    @Pointcut("execution(public * com.example.service..*(..))")
+    public void serviceMethods() {}
+
+    // 环绕通知：在方法执行前后都介入
+    @Around("serviceMethods()")
+    public Object logExecutionTime(ProceedingJoinPoint joinPoint) throws Throwable {
+        long start = System.currentTimeMillis();
+
+        // 执行目标方法
+        Object result = joinPoint.proceed();
+
+        long end = System.currentTimeMillis();
+        String methodName = joinPoint.getSignature().toShortString();
+        System.out.println(methodName + " 执行耗时: " + (end - start) + " ms");
+
+        return result;
+    }
+}
+```
+
+## tx
+
+Spring中负责事务管理的模块，通过抽象层使得事务管理与具体的技术实现解耦。Spring 事务是基于数据库事务的，相当于是数据库事务操作的封装。
+
+### 事务相关
+
+事务是数据库操作的最小逻辑单元，是一组操作的集合，这些操作要么全部执行成功，要么全部执行失败，保证数据的一致性。
+
+##### ACID 特性
+
+- **原子性（Atomicity）**：事务中的操作要么全部完成，要么全部不完成
+- **一致性（Consistency）**：事务执行前后，数据从一个合法状态转换到另一个合法状态
+- **隔离性（Isolation）**：多个事务并发执行时，相互之间不会干扰
+- **持久性（Durability）**：事务一旦提交，其结果将永久保存在数据库中
+
+### Spring 事务管理接口（Spring 事务“铁三角”，声明式事务和编程式事务都是对此的封装，我们一般不会手动去实现这些接口）
+
+Spring 框架中，事务管理相关最重要的 3 个接口如下：
+
+- `**PlatformTransactionManager**`：（平台）事务管理器，Spring 事务策略的核心。
+- `**TransactionDefinition**`：事务定义信息(事务隔离级别、传播行为、超时、只读、回滚规则)。
+- `**TransactionStatus**`：事务运行状态。
+
+#### PlatformTransctionManager：事务管理接口
+
+通过这个接口，Spring 为各个平台如：JDBC(`DataSourceTransactionManager`)、Hibernate(`HibernateTransactionManager`)、JPA(`JpaTransactionManager`)等都提供了对应的事务管理器，但是具体的实现就是各个平台自己的事情了。
+
+这个接口方法有：获取事务，提交，回滚等。可以看到，这是个整体流程的控制接口。
+
+#### TransactionDefinition：事务属性
+
+事务管理器接口 `**PlatformTransactionManager**` 通过 `**getTransaction(TransactionDefinition definition)**` 方法来得到一个事务，这个方法里面的参数是 `**TransactionDefinition**` 类 ，这个类就定义了一些基本的事务属性。
+
+就是隔离级别，传播行为，回滚规则那些东西。
+
+下面讲一下事务属性哈，就算我们是用声明式注解，属性也是要写的。
+
+##### 事务传播行为
+
+解决业务层方法之间互相调用的事务问题。就是一个事务方法调用另一个方法，内部方法如果回滚了，外部是不是也跟着回滚或者其他的什么策略。
+
+###### TransactionDefinition.PROPAFATION_REQUIRED
+
+默认行为。如果当前存在事务，则加入该事务；如果当前没有事务，则创建一个新的事务。
+
+- 如果外部方法没有开启事务的话，`Propagation.REQUIRED`修饰的内部方法会新开启自己的事务，且开启的事务相互独立，互不干扰。
+- 如果外部方法开启事务并且被`Propagation.REQUIRED`的话，所有`Propagation.REQUIRED`修饰的内部方法和外部方法均属于同一事务 ，只要一个方法回滚，整个事务均回滚。
+
+###### TransactionDefinition.PROPAGATION_REQUIRES_NEW
+
+创建一个新的事务，如果当前存在事务，则把当前事务挂起。也就是说不管外部方法是否开启事务，`Propagation.REQUIRES_NEW`修饰的内部方法会新开启自己的事务，且开启的事务相互独立，互不干扰。
+
+###### TransactionDefinition.PROPAGATION_NESTED
+
+如果当前存在事务，则创建一个事务作为当前事务的嵌套事务执行； 如果当前没有事务，就执行与`TransactionDefinition.PROPAGATION_REQUIRED`类似的操作。也就是说：
+
+- 在外部方法开启事务的情况下，在内部开启一个新的事务，作为嵌套事务存在。
+- 如果外部方法无事务，则单独开启一个事务，与 `PROPAGATION_REQUIRED` 类似。
+
+`TransactionDefinition.PROPAGATION_NESTED`代表的嵌套事务以父子关系呈现，其核心理念是子事务不会独立提交，依赖于父事务，在父事务中运行；当父事务提交时，子事务也会随着提交，理所当然的，当父事务回滚时，子事务也会回滚；
+
+- 如果父事务回滚，嵌套子事务也会回滚。
+- 如果子事务回滚，父事务不一定回滚。
+
+- 如果子事务有异常处理，可以不被父事务感知异常，父事务就不会回滚。
+- 如果子事务没做异常处理，同时父事务也没法处理，那么就会整体回滚。
+
+###### TransactionDefiniton.PROPAGATION_MANDATORY
+
+如果当前存在事务，则加入该事务；如果当前没有事务，则抛出异常。（mandatory：强制性）
+
+#### TransactionStatus：事务状态
+
+`PlatformTransactionManager.getTransaction(…)`方法返回一个 `TransactionStatus` 对象。
+
+方法有：是否为新事物，是否已回滚，是否已完成等等...
+
+一般我们使用使用@Transactional 注解是不需要自己来实现这些接口逻辑的。注解已经帮我们封装好了，我们只需要传入相应的配置即可。
+
+##### 事务隔离级别
+
+就是数据库的那些隔离级别，还有一个是使用后端数据库默认的隔离级别：ISOLATION_DEFAULT。
+
+##### 还有别的属性是比较简单的，这里就不说了，比如超时时间，回滚异常啥的。
+
+### 事务管理方式
+
+#### 编程式事务管理
+
+通过 `TransactionTemplate`或者`TransactionManager`手动管理事务，实际应用中较少使用。
+
+#### 声明式事务管理（推荐方式）
+
+通过配置或注解来控制事务，无需在代码中显式管理事务，主要有两种实现方式：
+
+1.  基于 xml 配置
+2.  基于注解（@Transcational，以此为例）
+
+实际通过 AOP 实现，动态代理。
+
+#### @Transactional注解
+
+可以应用于接口（不推荐）、类（相当于类中的所有方法都开启事务）、方法（最常用）上。
+
+​`**@Transactional**` **的工作机制是基于 AOP 实现的，AOP 又是使用动态代理实现的。如果目标对象实现了接口，默认情况下会采用 JDK 的动态代理，如果目标对象没有实现了接口,会使用 CGLIB 动态代理。**
+
+```java
+@Transactional(
+    propagation = Propagation.REQUIRED,
+    isolation = Isolation.DEFAULT,
+    timeout = 30,
+    readOnly = false, // 是否为只读事务，就是只能读，不能修改数据
+    rollbackFor = {Exception.class},
+    noRollbackFor = {SpecificException.class}
+)
+// propagation：传播行为
+// isolation：隔离级别
+// no/rollbackFor：不回滚/回滚的异常条件
+public void someMethod() {
+    // 业务逻辑
+}
+```
+
+#### 注意事项
+
+- 此注解只对public方法有效，对protected、private无效
+
+- 这是因为 JDK 动态代理只能拦截 public（接口的方法一般都是 public，当然后面的版本可以有 private 了，给 default 方法用的）。
+
+- 在同一个类中，一个方法调用另一个有 @Transactional 注解的方法，事务不会生效
+
+- 这是因为 Spring 的事务管理是基于 AOP 代理实现的
+
+- 默认情况下，@Transactional 只对未检查异常（RuntimeException 及其子类）和 Error 进行回滚
+
+- 对于检查异常（Exception 的子类，但不包括 RuntimeException），需要通过 rollbackFor 属性指定
+
+- 如果存在多个事务管理器，需要通过value属性指定使用哪个事务管理器
+
+# Spring 中的设计模式
+
+- **工厂设计模式** : Spring 使用工厂模式通过 `BeanFactory`、`ApplicationContext` 创建 bean 对象。
+- **代理设计模式** : Spring AOP 功能的实现。
+- **单例设计模式** : Spring 中的 Bean 默认都是单例的。
+- **模板方法模式** : Spring 中 `jdbcTemplate`、`hibernateTemplate` 等以 Template 结尾的对数据库操作的类，它们就使用到了模板模式。
+- **包装器设计模式** : 我们的项目需要连接多个数据库，而且不同的客户在每次访问中根据需要会去访问不同的数据库。这种模式让我们可以根据客户的需求能够动态切换不同的数据源。
+- **观察者模式:** Spring 事件驱动模型就是观察者模式很经典的一个应用。
+- **适配器模式** : Spring AOP 的增强或通知(Advice)使用到了适配器模式、spring MVC 中也是用到了适配器模式适配`Controller`。
+- ……
+
+// 回头复习设计模式的时候把这块对照着看一下，还有 JavaIO 那块也写了不少用到的设计模式。

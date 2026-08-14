@@ -1,0 +1,265 @@
+---
+title: '二叉树'
+date: '2025-02-18'
+updated: '2025-02-18'
+description: '树的遍历方法很重要，先序遍历，中序遍历，后序遍历。递归写法都比较好写。 如果要迭代，可以使用颜色标记法，再使用栈数据结构，记录状态即可。 java中的栈和队列可以使用arraydeque数据结构来实现。 java deque<integer'
+published: true
+category: '前端学习'
+tags: ['算法刷题']
+---
+
+树的遍历方法很重要，先序遍历，中序遍历，后序遍历。递归写法都比较好写。
+
+如果要迭代，可以使用颜色标记法，再使用栈数据结构，记录状态即可。
+
+java中的栈和队列可以使用ArrayDeque数据结构来实现。
+
+```java
+Deque<Integer> deque = new ArrayDeque<>();
+deque.offerLast(1);
+deque.offerFirst(1);
+deque.pollLast(1);
+deque.pollLast(1);
+deque.offer(1);
+deque.poll(1); // 不写last/first默认就是队列。
+```
+
+注意：ArrayDeque不能存放null。
+
+还可以使用LinkedList，主要就是offer和poll函数。
+
+还有一个是层序遍历。
+
+层序遍历就是使用队列，注意一个很巧妙的操作，可以一次遍历一层。
+
+实际上就是在队列的非空循环里面，每次不是只遍历一个元素，而是把当前队列中的所有元素全部遍历。
+
+初始是根节点入队，这样做，每次循环就是遍历一层。
+
+```java
+while (!queue.isEmpty()) {
+    int size = queue.size();
+    // 每次遍历一层
+    for (int i = 0; i < size; ++i) {
+        queue.poll();
+        ...
+    }
+}
+```
+
+树的题目大部分有一个比较常见的思路，类似于树形dp，比如最大深度，直径，最近公共祖先等。
+
+就是考虑当前结点，左子树，右子树，同时把左子树和右子树当成和当前树的地位一样。处理的方式大多数是回溯，先向下递归，向上回溯的时候进行处理。考虑子树需要传给父节点什么信息，父节点如何利用这些信息并继续向上传递。
+
+有一个题对我造成困扰，即路径总和3，这个题目算的是结点之和为某值的组合数（连续结点）。对于这类组合数的问题，无法方便地利用回溯的思路解题，因为如果要这么做，子结点传给父节点的信息就过多了。这个题目的思路就是自顶向下的，像这种连续的一段的和，如果是数组，其实很容易想到前缀和优化，树也是一样的，用当前结点的前缀和减去前面的某个前缀和得到的结果表示的路径一定是和当前结点挨着的，这和前缀和的定义紧密相关。领悟到了这一点，整体的解题思路就很好理解了。
+
+第一个题是二叉树的中序遍历，递归方式比较好写，主要考虑迭代方式。
+
+迭代方式就是循环遍历当前结点的左节点，当前结点压栈，直到null。之后栈顶出栈，值入序列，再将当前结点设为栈顶的右结点。贴个代码：
+
+```java
+TreeNode curr = root;
+while (curr != null || !stk.isEmpty()) {
+    while (curr != null) {
+        stk.push(curr);
+        curr = curr.left;
+    }
+    curr = stk.pop();
+    ans.add(curr.val);
+    curr = curr.right;
+}
+return ans;
+
+// 扩展一下前序和后序
+// 前序和中序差不多，只是add的位置不同
+TreeNode curr = root;
+while (curr != null || !stk.isEmpty()) {
+    while (curr != null) {
+        ans.add(curr.val);
+        stk.push(curr);
+        curr = curr.left;
+    }
+    curr = stk.pop();
+    curr = curr.right;
+}
+return ans;
+
+// 后序，相对复杂，需要借助额外的变量prev记录上一次访问的子树。出栈之后左子树一定访问完了，
+// 如果root.right是prev的话，那么就说明右子树也访问完了，就可以访问当前元素了。
+TreeNode prev=null;
+//主要思想：
+//由于在某颗子树访问完成以后，接着就要回溯到其父节点去
+//因此可以用prev来记录访问历史，在回溯到父节点时，可以由此来判断，上一个访问的节点是否为右子树
+while(root!=null||!stack.isEmpty()){
+    while(root!=null){
+        stack.push(root);
+        root=root.left;
+    }
+    //从栈中弹出的元素，左子树一定是访问完了的
+    root=stack.pop();
+    //现在需要确定的是是否有右子树，或者右子树是否访问过
+    //如果没有右子树，或者右子树访问完了，也就是上一个访问的节点是右子节点时
+    //说明可以访问当前节点
+    if(root.right==null||prev==root.right){
+        ans.add(root.val);
+        //更新历史访问记录，这样回溯的时候父节点可以由此判断右子树是否访问完成
+        prev=root;
+        root=null;
+    }else{
+    //如果右子树没有被访问，那么将当前节点压栈，访问右子树
+        stack.push(root);
+        root=root.right;
+    }
+}
+return ans;
+```
+
+第二个是二叉树的最大深度，这个更像是一个树形dp，f[root] = max(f[root.left], f[root.right]+1)，这个方法官方叫dfs，也可以用bfs，实际就是层次遍历，最大的层数就是答案。
+
+第三个是翻转二叉树，递归，递归回溯的时候swap左右结点即可。
+
+第四个是对称二叉树，判断二叉树是不是轴对称，实际上就是判断一边向右遍历，一边向左遍历是不是一样的，并且反过来也需要一样。我当时的思路是中序遍历判断是否回文，但是因为有null，会很麻烦。
+
+说的准确一点，两个数互为镜像需要满足两个条件：
+
+1.根节点值相等。
+
+2.每个树的左子树与另一个树的右子树互为镜像。
+
+第五个是二叉树的直径，这个题目和二叉树的深度类似，不一样的是这个题目需要额外去维护ans，f[root]不一定是ans。返回给父节点的是左子树和右子树中的深度最大值+1，但是ans等于左+右。
+
+```java
+public int maxDepth(TreeNode root) {
+    if (root == null) return 0;
+    int left = maxDepth(root.left);
+    int right = maxDepth(root.right);
+    ans = Math.max(ans, left+right);
+    return Math.max(left, right)+1;
+}
+```
+
+第六个是层序遍历，记住那个每次遍历一层的技巧就可以轻松处理step。
+
+第七个是将有序数组转换为二叉搜索树。这个就是二分的思想，要注意的是写法，递归函数可以有返回值比较好，这样只需要在每次进去的时候new一下，再返回给调用者。
+
+```java
+public TreeNode BST(TreeNode root, int[] nums, int l, int r) {
+    if (l > r) return null;
+
+    root = new TreeNode();
+    int mid = (l + r) >> 1;
+    root.val = nums[mid];
+
+    root.left = BST(root.left, nums, l, mid - 1);
+    root.right = BST(root.right, nums, mid + 1, r);
+    return root;
+}
+```
+
+第八个是验证二叉搜索树，给一个树的根节点。一种想法是在递归时维护一个取值范围lower和upper。还有一种想法就是判断中序遍历升序。因为中序遍历正好是左根右，只要是升序的，就一定满足条件。
+
+第九个是二叉搜索树中第K小的元素，就是中序遍历的第K个元素哈。优化的话也可以预处理以每个结点为根的子树的结点数量，再遍历。思路很直观，左子树的数量大于等于K就在左子树里面，否则是当前结点或者是右子树。
+
+第十个是二叉树的右视图，实际上就是层序遍历，只不过是倒过来，先遍历右子树再遍历左子树，每层取第一个即可。
+
+第十一个是二叉树展开为链表，顺序是先序遍历。先序是根左右，很显然右子树需要先接到左子树上，然后左右互换，左置空。
+
+![image.png](/images/posts/前端学习-算法刷题-二叉树/二叉树-1.png)
+
+核心就是找到右子树的前驱结点，很显然，先序遍历，右子树的前驱结点应该是根节点的左子树最右下方的结点。
+
+给出代码：
+
+```java
+public void flatten(TreeNode root) {
+    if (root == null) return ;
+    if (root.left != null) {
+        // 有左子树
+        // 1.将右子树接到左子树右下方
+        getTreeRightBottom(root.left).right = root.right;
+        // 2.将左子树变成右子树
+        root.right = root.left;
+        // 3.左子树置为空
+        root.left = null;
+    }
+    // 继续遍历右子树
+    flatten(root.right);
+}
+
+TreeNode getTreeRightBottom(TreeNode root) {
+    if (root.right == null) return root;
+    else return getTreeRightBottom(root.right);
+}
+```
+
+第十二个是根据前序遍历和中序遍历构造二叉树。这种构造的题目都可以使用第七题那种方式，在递归函数里面new，再返回给调用者。这个题目就是需要递归时传入四个参数，表示前序和中序序列的左右边界。前序的第一个就是根，之后在中序里面找根，就可以确定左右子树的结点个数，也就可以确定先序的左右子树索引范围了。中序里面找根比较费时间，可以用一个map保存一下，空间换时间。
+
+第十三个是路径总和3，给一个树和一个targetSum，问有多少条连续路径元素之和为targetSum。其中的路径要求要一直向下，就是不能是跨越某个结点的左右子树的一条路径。一种想法是暴力枚举路径起点，每个结点都找到底部，看看有多少条合法路径，求和就是答案。第二种就是使用前缀和优化，这样可以遍历一遍，把当前遍历到的结点作为路径终点，前面的路径数量可以方便地通过当前元素的前缀和map.get(sum-targetSum)得到。这里解释一下，如果某个前缀和 s = sum - targetSum. 那么，sum - s = targetSum，这就表示一段以当前结点为终点的连续路径了。还有两个细节是：起始位置要放入map.put(0l, 1)，因为存在sum = targetSum的情况。还有就是遍历完结点之后要恢复map的现场，因为每个结点时，map的状态只能和其上面的结点有关，不然就会出错。
+
+```java
+public int pathSum(TreeNode root, int targetSum) {
+    Map<Long, Integer> sumMap = new HashMap<>();
+    sumMap.put(0l, 1); // 要点1
+    return rootSum(root, targetSum, 0l, sumMap);
+}
+
+// 只能是边递归边维护sum，不能事先把全部结点维护好。
+int rootSum(TreeNode root, int targetSum, Long sum, Map<Long, Integer> map) {
+    if (root == null) return 0;
+    int ret = 0;
+    sum += root.val;
+    if (map.containsKey(sum-targetSum)) ret += map.get(sum-targetSum);
+    if (map.containsKey(sum)) map.put(sum, map.get(sum)+1);
+    else map.put(sum, 1);
+    ret += rootSum(root.left, targetSum, sum, map) +
+            rootSum(root.right, targetSum, sum, map);
+    // 这里要重置map的状态，一定是有的
+    map.put(sum, map.get(sum)-1); // 要点2
+
+    return ret;
+}
+```
+
+第十四个是二叉树的最近公共祖先，如果一个结点为结点p, q的最近公共祖先，就是这个树里面既有p又有q而且树的深度尽可能地大。那很明显就是在递归回溯的时候处理即可。因为递归到底，叶子结点很好处理，向上找到的第一个一定是答案。这个题目写起来还是比较复杂，判断条件比较多。因为有两种情况，一种是p, q分布在最近公共祖先的结点的左右子树，第二种是最近公共祖先本身就是p, q中的一个。贴个代码，与官解基本一致。
+
+```java
+boolean dfs(TreeNode root, int p, int q) {
+    if (root == null) return false;
+
+    boolean left = dfs(root.left, p, q);
+    boolean right = dfs(root.right, p, q);
+
+    if ((left && right) || ((left || right) && (root.val == p || root.val == q))) {
+        ans = root;
+    }
+    return left || right || root.val == p || root.val == q;
+}
+```
+
+第十五个是二叉树中的最大路径和，这个也属于是先递归到底部，从底部开始处理的问题。还有一个普遍特点是：答案的更新逻辑与递归函数的返回逻辑是不一样的，答案可以考虑当前节点和左孩子，右孩子，可以把左孩子和又孩子同时考虑，但是向上返回的时候一定是要单边（或者没有）+当前结点，要特别注意当前结点的值是一定要的，如果不返回当前节点的值那么就不连续了。因为从底部开始每一次都返回了当前结点的值，所以到上部之后可以保证子结点返回来的值一定是紧挨着下面的连续的一些结点的值。
+
+同时，写法上，实际上，左孩子和右孩子如果小于0就没有价值，大于0才有价值，所以直接Math.max(dfs(.), 0)即可。
+
+贴个官解代码：
+
+```java
+public int maxGain(TreeNode node) {
+    if (node == null) {
+        return 0;
+    }
+
+    // 递归计算左右子节点的最大贡献值
+    // 只有在最大贡献值大于 0 时，才会选取对应子节点
+    int leftGain = Math.max(maxGain(node.left), 0);
+    int rightGain = Math.max(maxGain(node.right), 0);
+
+    // 节点的最大路径和取决于该节点的值与该节点的左右子节点的最大贡献值
+    int priceNewpath = node.val + leftGain + rightGain;
+
+    // 更新答案
+    maxSum = Math.max(maxSum, priceNewpath);
+
+    // 返回节点的最大贡献值
+    return node.val + Math.max(leftGain, rightGain);
+}
+```

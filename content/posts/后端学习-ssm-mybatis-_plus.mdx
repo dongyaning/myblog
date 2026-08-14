@@ -1,0 +1,399 @@
+---
+title: 'MyBatis(&_plus)'
+date: '2024-03-05'
+updated: '2024-03-05'
+description: 'mybatis 轻量级持久层框架，主要用于简化java应用于数据库的交互。 核心组件 mybatis的核心组件围绕“如何执行sql并映射结果”展开。 - sqlsessionfactory - 通过配置xml/配置类创建sqlsession'
+published: true
+category: '后端学习'
+tags: ['ssm']
+---
+
+# MyBatis
+
+轻量级持久层框架，主要用于简化Java应用于数据库的交互。
+
+## 核心组件
+
+Mybatis的核心组件围绕“**如何执行SQL并映射结果**”展开。
+
+- SqlSessionFactory
+
+- 通过配置(xml/配置类)创建sqlSession对象，为mybatis的入口。如指定配置源等。
+
+- SqlSession
+
+- 代表与数据库的一次会话，提供执行SQL、管理事务的方法。
+- 执行周期通常与Service绑定
+
+- Mapper接口
+
+- 定义数据操作的抽象方法
+
+- 映射文件
+
+- 分为xml映射和注解映射
+- 书写动态sql语句，推荐xml方式
+
+## 工作流程
+
+- 加载配置
+- 创建SqlSession
+
+- SqlSessionFactory.openSession()
+
+- 执行SQL（核心操作）
+
+- SqlSession.getMapper(xxxMapper.class)
+- 调用mapper方法
+
+- 根据方法名和参数，查找对应的Sql语句
+
+- 结果映射（关键能力）
+
+- 将数据结果集映射为Java对象
+
+- 基础类型
+- 自定义对象：字段与数据库类名一一对应
+- 复杂映射：一对多、多对多关系
+
+- 关闭会话
+
+## 关键特性
+
+- 动态SQL（核心优势）
+
+- 通过XML标签，如&lt;if>, &lt;where>, &lt;foreach> 动态拼接SQL语句
+
+- 参数处理
+
+- 单个参数
+
+- 使用#&#123;param&#125;占位，里面写什么无所谓
+
+```xml
+<select id="getUserById" parameterType="Long" resultType="User">
+  SELECT * FROM user WHERE id = #{id}
+</select>
+
+// parameterType可省略，mybatis会自动推断
+```
+
+- 多个参数：
+
+- 1.使用@Param注解命名（@Param("username") String name）（推荐）
+
+```java
+User selectUser(@Param("id") Long id, @Param("username") String username);
+```
+
+```xml
+<select id="selectUser" resultType="User">
+  SELECT * FROM user
+  WHERE id = #{id} AND username = #{username}
+</select>
+```
+
+- 2.除此之外还可以使用Map或者是自定义对象的方式，只要保证mapper的key或对象名与书写的一致
+
+```java
+User selectUser(Map<String, Object> params); // map
+
+User selectUser(UserQueryDTO queryDTO); // java
+```
+
+- 对象参数：直接访问对象属性（#&#123;user.username&#125;）
+
+- 参数验证与安全
+
+- 使用#&#123;&#125;会预编译参数，防止SQL注入
+
+- 防SQL注入的原理是分两次将SQL语句传给数据库，先使用?占位符，进行预编译，此时SQL语句的结构就确定了，再传过来的数据部分只会被当做普通的字符串或其它数据格式处理，而不会看做SQL语句结构的一部分。
+
+- 使用$&#123;&#125;会直接拼接，可能导致SQL注入，仅适用于表名、列名等非参数部分，不建议使用
+
+- 结果映射（Result Mapping）
+
+- 核心特性之一，负责将SQL查询结果转换为Java对象。解决了数据库字段与Java对象属性之间的映射问题。
+- **1.自动映射**
+- 数据库字段名与Java对象属性名一致
+
+- 也可以通过as 改变字段名
+
+- **2.手动映射**
+- 字段名与属性名不一致时，使用resultMap显式定义映射关系，并在sql标签中通过resultMap指定
+
+```xml
+<resultMap id="UserResultMap" type="User">
+  <id property="id" column="user_id" />        <!-- 主键映射 -->
+  <result property="username" column="user_name" />  <!-- 普通字段映射 -->
+  <result property="createTime" column="create_time" />
+</resultMap>
+
+// 其中，property是Java属性名，column是数据库字段名
+
+<select id="getUserById" resultMap="UserResultMap"> // resultMap指定映射
+  SELECT user_id, user_name, create_time FROM user WHERE user_id = #{id}
+</select>
+```
+
+- **复杂类型映射**
+
+- 一对一关联，用于嵌套对象（association）
+
+```xml
+<resultMap id="UserWithAddressMap" type="User">
+  <id property="id" column="id" />
+  <result property="username" column="username" />
+
+  <!-- 嵌套对象映射 -->
+  <association property="address" javaType="Address">
+    <id property="id" column="address_id" />
+    <result property="city" column="city" />
+    <result property="street" column="street" />
+  </association>
+</resultMap>
+```
+
+- 一对多关联，用于映射对象中的集合属性（collection）
+
+```xml
+<resultMap id="UserWithOrdersMap" type="User">
+  <id property="id" column="id" />
+  <result property="username" column="username" />
+
+  <!-- 集合映射 -->
+  <collection property="orders" ofType="Order">
+    <id property="id" column="order_id" />
+    <result property="orderNo" column="order_no" />
+    <result property="amount" column="amount" />
+  </collection>
+</resultMap>
+```
+
+- 使用typeHandler
+
+- 当数据库类型与Java类型不匹配时，使用typeHandler自定义转换逻辑
+
+```java
+public class UserStatusTypeHandler extends BaseTypeHandler<UserStatus> {
+  @Override
+  public void setNonNullParameter(PreparedStatement ps, int i, UserStatus status, JdbcType jdbcType) {
+    ps.setInt(i, status.getValue());
+  }
+
+  @Override
+  public UserStatus getNullableResult(ResultSet rs, String columnName) {
+    int value = rs.getInt(columnName);
+    return UserStatus.fromValue(value);
+  }
+  // 其他方法...
+}
+```
+
+```xml
+<typeHandlers>
+  <typeHandler handler="com.example.UserStatusTypeHandler" />
+</typeHandlers>
+```
+
+- 鉴别器
+
+- 根据字段值动态选择映射结果
+
+```xml
+<resultMap id="UserResultMap" type="User">
+  <id property="id" column="id" />
+  <result property="username" column="username" />
+  <result property="userType" column="user_type" />
+
+  <!-- 鉴别器 -->
+  <discriminator javaType="int" column="user_type">
+    <case value="1" resultType="AdminUser">
+      <result property="role" column="role" />
+    </case>
+    <case value="2" resultType="NormalUser">
+      <result property="level" column="level" />
+    </case>
+  </discriminator>
+</resultMap>
+```
+
+- mapUnderscoreToCamelCase=true，自动映射
+
+- 数据库字段使用下划线命名（user_name）
+- Java属性使用驼峰命名（userName）
+
+```xml
+<settings>
+    <setting name="mapUnderscoreToCamelCase" value="true"/>
+</settings>
+```
+
+## 配置
+
+1.pom.xml中添加依赖：
+
+```xml
+<dependencies>
+    <!-- Spring核心 -->
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-context</artifactId>
+        <version>5.3.28</version>
+    </dependency>
+
+    <!-- Spring AOP和事务 -->
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-aop</artifactId>
+        <version>5.3.28</version>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-tx</artifactId>
+        <version>5.3.28</version>
+    </dependency>
+
+    <!-- Spring JDBC -->
+    <dependency>
+        <groupId>org.springframework</groupId>
+        <artifactId>spring-jdbc</artifactId>
+        <version>5.3.28</version>
+    </dependency>
+
+    <!-- MyBatis -->
+    <dependency>
+        <groupId>org.mybatis</groupId>
+        <artifactId>mybatis</artifactId>
+        <version>3.5.11</version>
+    </dependency>
+
+    <!-- MyBatis-Spring集成 -->
+    <dependency>
+        <groupId>org.mybatis</groupId>
+        <artifactId>mybatis-spring</artifactId>
+        <version>2.0.7</version>
+    </dependency>
+
+    <!-- 数据库驱动(MySQL示例) -->
+    <dependency>
+        <groupId>mysql</groupId>
+        <artifactId>mysql-connector-java</artifactId>
+        <version>8.0.33</version>
+    </dependency>
+
+    <!-- 连接池(HikariCP性能最优) -->
+    <dependency>
+        <groupId>com.zaxxer</groupId>
+        <artifactId>HikariCP</artifactId>
+        <version>5.0.0</version>
+    </dependency>
+
+    <!-- AOP实现(用于事务) -->
+    <dependency>
+        <groupId>org.aspectj</groupId>
+        <artifactId>aspectjweaver</artifactId>
+        <version>1.9.7</version>
+    </dependency>
+
+    <!-- Lombok简化代码 -->
+    <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.18.26</version>
+        <scope>provided</scope>
+    </dependency>
+</dependencies>
+```
+
+2.配置连接池
+
+3.Mybatis配置类，扫描Mapper接口
+
+4.创建实体类（使用Lombok生成setter、getter）
+
+5.创建Mapper接口
+
+6.创建Service
+
+7.应用入口，即Spring容器创建
+
+# MyBatis - Plus
+
+mybatis的增强版本，只做增强，不做改变，意思是兼容所有mybatis的原有使用方式，又额外封装了一些别的功能。目的是简化开发，提高效率。
+
+## 两层的增强
+
+### Mapper层（主要使用）
+
+```java
+@Mapper
+public interface UserMapper extends BaseMapper<User> {
+    // 可以添加自定义方法
+    @Insert("insert into users(id, username, count) values (#{id}, #{username}, #{count})")
+    boolean insertUser(User user);
+}
+// 添加@Mapper或者是配置@MapperSacan之后，会被mp扫描
+// 继承BaseMapper就得到了很多增强方法
+// 扫描到之后, mp会根据动态代理生成代理类（实现类）。
+```
+
+### Service层
+
+```java
+@Service
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    // 可实现自定义方法
+
+    @Autowired
+    private UserMapper userMapper;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean insertUser(User user) {
+        return userMapper.insertUser(user);
+    }
+}
+```
+
+## 分页
+
+配置分页插件：Springboot的配置类里边
+
+```java
+@Bean
+public MybatisPlusInterceptor mybatisPlusInterceptor() {
+    MybatisPlusInterceptor interceptor = new MybatisPlusInterceptor();
+    // 2.x版本没有那个分页类，要3.4以上
+    interceptor.addInnerInterceptor(new PaginationInnerInterceptor(DbType.MYSQL));
+    return interceptor;
+}
+```
+
+使用
+
+```java
+public void testPage() {
+    Page<User> page = new Page<>(1, 3);
+    userMapper.selectPage(page, null); // 配置插件之后就会有这个方法了
+
+    page.getCurrent();
+    page.getSize();
+    page.getTotal();
+    // ...
+}
+```
+
+## 条件构造器
+
+构造复杂的数据库查询条件。
+
+推荐使用：LambdaQueryWrapper 和 LambdaUpdateWrapper
+
+```java
+LambdaUpdateWrapper wrapper = new LambdaUpdateWrapper();
+wrapper.gt(User::getAge, 20).like(User::getName, "a");
+// 这里介绍一下
+```
+
+# ​

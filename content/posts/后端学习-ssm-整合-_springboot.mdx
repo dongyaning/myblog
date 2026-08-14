@@ -1,0 +1,231 @@
+---
+title: '整合(&_SpringBoot)'
+date: '2024-02-22'
+updated: '2024-02-22'
+description: 'ssm整合 实际上就是把三个东西用到一个项目里面，或者是把mybatis和springmvc放到spring的ioc容器中。 整合五问 第一问：ssm整合需要几个ioc容器？ 最少一个容器就够了，但是常见的做法事创建两个ioc容器（web容'
+published: true
+category: '后端学习'
+tags: ['ssm']
+---
+
+# ssm整合
+
+实际上就是把三个东西用到一个项目里面，或者是把Mybatis和SpringMvc放到Spring的Ioc容器中。
+
+## 整合五问
+
+### 第一问：SSM整合需要几个IoC容器？
+
+最少一个容器就够了，但是常见的做法事创建两个IoC容器（Web容器和Root容器），将组件分类管理。实现分离关注点、解耦合、灵活配置。
+
+### 第二问：每个IoC容器对应哪些类型组件？
+
+web容器：web相关组件，包括Controller和SpringMcv核心组件
+
+root容器：业务和持久层相关组件，如service,aop,tx,dataSource,mybatis,mapper
+
+### 第三问：IoC容器之间关系和调用方向？
+
+root和web是父子关系，没有关系无法调用。
+
+### 第四问：具体多少配置类以及对应容器关系？
+
+建议为三个，即一层一个
+
+WebJavaConfig，controller, springmvc, 控制层, web容器
+
+ServiceJavaConfig, 数据层, root容器
+
+MapperJavaConfig, 业务层，root容器
+
+### 第五问：IoC初始化方式和配置信息？
+
+```java
+public class DemoApplicationInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
+    // 指定root容器的配置类
+    @Override
+    protected Class<?>[] getRootConfigClasses() {
+        return new Class<?>[]{AppConfig.class};
+    }
+
+    // 指定web容器的配置类
+    @Override
+    protected Class<?>[] getServletConfigClasses() {
+        return new Class<?>[]{WebMvcConfig.class};
+    }
+
+    // DispatcherHandler的处理路径配置
+    @Override
+    protected String[] getServletMappings() {
+        return new String[]{"/"};
+    }
+}
+```
+
+# SpringBoot
+
+解决问题：单体项目只需要整合文件一次，但是微服务项目需要整合好多次，非常麻烦。
+
+SpringBoot可以帮我们简单、快速地创建一个独立的、生产级别的Spring应用，只需要编写少量配置即可快速整合Spring平台以及第三方技术！
+
+```java
+// 1.创建一个空项目
+// 2.创建Maven模块
+// 3.pom.xml中加入：
+<parent>
+    <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-parent -->
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.4.5</version>
+</parent>
+
+<dependencies>
+    <dependency>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+</dependencies>
+
+// 4.编写主函数
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication // 启动类
+public class Main {
+    public static void main(String[] args) {
+        SpringApplication.run(Main.class, args); // 自动创建ioc容器，启动tomcat服务器软件
+    }
+}
+
+// 5.编写controller
+@Controller
+@RequestMapping("hello")
+public class HelloController {
+
+    @RequestMapping("springboot")
+    @ResponseBody
+    public String hello() {
+        return "hello sping boot 3";
+    }
+}
+
+// 6.运行main
+// 7.访问localhost:8080/hello/springboot
+// 8.得到响应
+```
+
+## 配置文件
+
+SpringBoot使用统一配置方式，有两种文件格式：
+
+1.application.properties
+
+2.application.yml/yaml，推荐，具有层次结构
+
+位置：resources文件夹下
+
+```yaml
+dyn:
+  user:
+    username: root  // 注意，键值之间必须加空格
+    password: 123456
+    girfriends:
+      - a   // - 是语法，表示集合
+      - b
+      - c
+```
+
+业务类中导入：
+
+```java
+@Controller
+@ConfigurationProperties(prefix="dyn.user") // 一种方式，下面名字一样就行，批量导入
+public class User {
+    @Value("${dyn.user.username}") // 一种方式，需要写全，一次导入一个
+    private String username;
+}
+```
+
+也可以分开写配置文件，在application.yaml里面激活：
+
+```yaml
+spring:
+  profiles:
+    active: test,dev // 激活application-test.yaml 和 application-dev.yaml 配置文件
+    // 重复的情况，激活的外部配置覆盖主配置文件（相当于是基础文件，可以被覆盖）
+```
+
+## Spring Boot 项目运行部署
+
+与普通web项目不同：
+
+普通web项目：web项目->war->tomcat->webapps ，tomcat启动自动解压war，访问资源
+
+springboot项目：内置服务器软件，打包为jar（包含服务器软件），命令执行 java -jar x x
+
+```java
+// 1.导入pom依赖 spring-boot-maven-plugin
+// 2.运行package周期
+// 3.使用java -jar -D参数1 -D参数2 xxx.jar 的方式运行项目
+```
+
+# Spring & SpringBoot 常用注解
+
+## SpringBoot 基础注解
+
+```java
+@SpringBootApplication
+// 标注主启动类
+
+我们可以把 @SpringBootApplication看作是下面三个注解的组合：
+
+@EnableAutoConfiguration：启用 Spring Boot 的自动配置机制。
+
+@ComponentScan：扫描 @Component、@Service、@Repository、@Controller 等注解的类。
+
+@Configuration：允许注册额外的 Spring Bean 或导入其他配置类。
+```
+
+这个注解这里还是看 javaguide 原文吧，不写了。
+
+[https://javaguide.cn/system-design/framework/spring/spring-common-annotations.html](https://javaguide.cn/system-design/framework/spring/spring-common-annotations.html)
+
+# Spring Boot starters
+
+**Spring Boot Starter 是一个面向特定技术场景的“自动装配包”，它：**
+
+1.  **聚合**该场景所需的依赖（解决版本兼容问题）
+2.  **自动配置**基础设施 Bean（无需手动 XML/JavaConfig）
+3.  **提供一致的编程接口和约定**（如注解、默认行为）
+4.  **通过条件装配实现“按需启用”**（classpath 有某类才生效）
+
+🌟 **它不是简单的“依赖集合”，而是一个“最小可运行功能单元”的封装。**
+
+# Spring Boot 自动装配
+
+这个是 Spring Boot 的核心，即插即用设计。
+
+**在 Spring（及 Spring Boot）语境中，“装配”（Wiring / Configuration）的核心含义就是：**  
+**将一个对象（Bean）创建出来，并交由 Spring 容器（ApplicationContext）管理其生命周期、依赖注入和作用域。**
+
+其实就是 “把某类放到 Spring 容器中管理”。
+
+**总结一句话：**
+
+**自动配置类 = 注册到** `**AutoConfiguration.imports**` **的** `**@Configuration**` **类 +** `**@Conditional***` **注解**  
+**缺了** `**@Conditional***`**，它就只是一个“加载时机靠后的普通配置类”，失去了 Spring Boot 自动装配的精髓。**
+
+这个要理解一下，自动配置的“自动”和“智能性“体现在：@Conditional\* 注解上，官方会提供很多常见场景的自动配置类，官方提供的和对于自动配置类的最佳实践就是要加上@Conditional\* 注解。这样的话就相当于是：
+
+```java
+// 伪代码逻辑
+if (classpath contains "Redis") {
+    if (user did NOT define RedisTemplate) {
+        create and register RedisTemplate with default settings;
+    }
+}
+```
+
+因此，官方说的是”**自动配置类在所有用户配置之后才生效，并尽可能在用户已定义 Bean 时主动退让（back off）**“。因为自动配置类的定义是这样的，官方提供的也是这样实现的！
+
+​

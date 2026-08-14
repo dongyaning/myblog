@@ -1,0 +1,220 @@
+---
+title: '链表'
+date: '2025-05-11'
+updated: '2025-05-11'
+description: '链表类的题目有几个比较关键的操作： - 头结点（哑结点，dummyhead） - 哑结点可以统一操作（头结点和非头结点，因为把所有信息结点都变成了非头结点）。 - 典型的应用场景： - 插入 - 删除 - 交换 java listnode '
+published: true
+category: '前端学习'
+tags: ['算法刷题']
+---
+
+链表类的题目有几个比较关键的操作：
+
+- **头结点（哑结点，dummyHead）**
+
+- 哑结点可以统一操作（头结点和非头结点，因为把所有信息结点都变成了非头结点）。
+- 典型的应用场景：
+
+- 插入
+- 删除
+- 交换
+
+```java
+ListNode dummyHead = new ListNode(0);
+dummyHead.next = head;
+ListNode temp = dummyHead;
+```
+
+- **交换场景下的视角前置**
+
+- 典型题目：交换链表中的相邻两个结点
+- 很重要的一点是：交换两个相邻结点实际上涉及到三个结点，考虑前置结点的思想很重要，有这个需求之后，就需要添加头结点了。
+
+- **反转链表**
+
+- 经典题目，prev和curr指针
+
+```java
+public void reverseList(ListNode head) {
+    ListNode prev = null, curr = head;
+    while (curr != null) {
+        ListNode next = curr.next;
+        curr.next = prev;
+        prev = curr;
+        curr = next;
+    }
+}
+```
+
+- **相交链表（双指针思路，相当于循环指针）**
+
+- 长度一样的话，一定能在第一次遍历就相交。
+- 长度不一样的话，
+- ![image.png](/images/posts/前端学习-算法刷题-链表/链表-1.png)
+- 走a+b+c之后一定会相遇
+
+- **快慢指针得到链表中点**
+
+- **注意这里的中点说的是：**
+
+- **偶数是前半段的尾部**
+- **奇数是中间结点**
+
+- 注意细节：while判断条件
+
+```java
+private ListNode endOfFirstHalf(ListNode head) {
+    ListNode fast = head;
+    ListNode slow = head;
+    while (fast.next != null && fast.next.next != null) {
+        fast = fast.next.next;
+        slow = slow.next;
+    }
+    return slow;
+}
+```
+
+- **环形链表**
+
+- 快慢指针
+- 如果要返回入环点，就需要推导了
+- ![image.png](/images/posts/前端学习-算法刷题-链表/链表-2.png)
+- 注意点：fast一定先入环，且在slow走完一周前，fast一定能追上它，因为slow都跑了两圈了，差值都有一圈了。
+- 设head->入环点为x，入环点到相遇点为y，则slow一定走了x+y，那么fast一定走了2(x+y)。那也就是说，slow再走x+y就回来了，又因为入环点到相遇点是y，所以相遇点到入环点就是x。
+- 因此，相遇之后，两个指针分别从head和相遇点往后走，相遇点就是入环点。
+
+- **删除倒数第n结点**
+
+- 要删除加入头结点
+- 也是快慢指针，快指针先走n+1步，注意是n+1步，因为要删除倒数第n个结点，需要找到倒数第n+1个结点！
+- 之后快慢指针同时走，fast为null了，slow就是目标位置了。
+
+​
+
+**第一个是\*\***相交链表\*\*，算是个双指针技巧题，我上面已经画过了，一起走，a走到末尾之后从b的开头走，b走到末尾从a的开头走，走到相交点都走了a+b+c步，一定会相遇，直接返回相遇点即可。
+
+第二个是反转链表，比较经典。上面已经贴了代码了。试了一下，手写还可以。
+
+第三个是回文链表，回文链表就是正着数和倒着数是一样的，但是单链表没办法倒着数。所以需要先把前面的部分或者后面的部分翻转，这样如果是回文的话前面一半和后面一半就应该是一样的。最后再还原。
+
+这个题目主要就是要注意要找到第一段的末尾元素或正中间的元素，因为回头恢复链表的时候要用，具体快慢指针写法我上面写了。还有一个细节就是不是回文不能直接返回false，因为还得恢复链表。
+
+第四个是环形链表，也是经典题。快慢指针，一个走一步，一个走两步，会相遇就是有环。
+
+第五个是环形链表2，求入环点，明白吧这个，a = c，一圈之内必追上慢指针。
+
+第六个是合并两个有序链表，归并思想。
+
+第七个是两数相加，就是用链表的形式给了两个数，每个结点放一位，给的是逆序的，答案也是逆序的，就相当于是模拟加法。
+
+第八个是删除链表第N个结点，经典快慢指针。需要注意两点：
+
+1.题目需要删除结点，需要头结点统一操作。
+
+2.删除倒数第N个需要找到倒数第N+1个结点。
+
+第九个是两两交换链表中的结点，我上面写过，交换两个结点，实际上涉及到三个结点，要找到的是要交换的两个节点前面的结点，最好处理。要交换前面两个，这个也需要dummyHead。
+
+整体就是 head -> node1 -> node2 -> node3， 变成 head -> node2 -> node1 -> node3。
+
+第十个是K个一组翻转链表，是上一个题的强化版本，上一个题相当于是K=2时的特例。
+
+但整体思路与上一个类似，只不过判断是否还有K个以及找node3的过程有些麻烦，中间不论多少元素都可以直接翻转，我们关心的只是两边的元素 dummyHead -> node1 -> ... -> node2 -> node3，本质上还是上一个题。
+
+第十一个是随机链表的复制，就是链表中多了一个random结点，可能随机指向任意结点或空结点，要返回深拷贝。难点在于遍历时random指向的结点可能还没遍历到，还没被创建出来。一个想法是可以提前创建并用hash存起来，需要的时候拿出来接上即可。用递归的写法实现比较简洁，但整体空间复杂度较高。
+
+另一种解法是先将链表 A->B->C 复制为 A->A'->B->B'->C->C'，将A'->B'->C'作为新的答案链表，那么原使用random.next就可以找到新结点了，非常方便，最后还原链表并取出答案即可。
+
+第十二个是排序链表，the end of leetcode hot 100. 要求nlogn的时间复杂度，常数级空间复杂度。排序方法里面比较适合链表的也就是归并，而且时间上也可以。
+
+这个题有两种归并方式，比较直观和经典的方式是自顶向下归并，即先递归拆分，直到长度为1，再执行归并。
+
+贴个代码：
+
+```java
+class Solution {
+    public ListNode sortList(ListNode head) {
+        if (head == null || head.next == null) return head;
+        // 快慢指针找到中点
+        ListNode slow = head, fast = head;
+        while (fast.next != null && fast.next.next != null) {
+            slow = slow.next;
+            fast = fast.next.next;
+        }
+
+        // 递归
+        ListNode head2 = sortList(slow.next);
+        slow.next = null; // 切断中间的连线
+        ListNode head1 = sortList(head);
+        // 归并
+        ListNode newHead = merge(head1, head2);
+        return newHead;
+    }
+
+    ListNode merge(ListNode head1, ListNode head2) {
+        ListNode dummyHead = new ListNode(-1), curr = dummyHead;
+        while (head1 != null && head2 != null) {
+            if (head1.val <= head2.val) {
+                curr.next = head1;
+                head1 = head1.next;
+            } else {
+                curr.next = head2;
+                head2 = head2.next;
+            }
+            curr = curr.next;
+        }
+        // 剩下的全部加进去
+        while (head1 != null) {
+            curr.next = head1;
+            head1 = head1.next;
+            curr = curr.next;
+        }
+        while (head2 != null) {
+            curr.next = head2;
+            head2 = head2.next;
+            curr = curr.next;
+        }
+        return dummyHead.next;
+    }
+}
+```
+
+另一种方式是自底向上归并，相对于上面的优势就是不需要递归的logn的空间了，相当于模拟递归过程。先两两一组，再四个四个一组，直到n大于等于链表长度。注意的点就是尽量枚举sublength也就是归并的一部分的长度，且记住指针前置的思想。同时，对于最后的不够长度的，也要进行归并。
+
+第十三个是合并K个有序链表，我贴一个优先队列的解法：
+
+```java
+class Solution {
+    public ListNode mergeKLists(ListNode[] lists) {
+        PriorityQueue<ListNode> h = new PriorityQueue<>((a, b) -> a.val - b.val);
+
+        for (ListNode node: lists)
+            if (node != null) h.offer(node);
+
+        ListNode dummyHead = new ListNode(-1), curr = dummyHead;
+        while (!h.isEmpty()) {
+            ListNode node = h.poll();
+            curr.next = node;
+            curr = curr.next;
+
+            if (node.next != null) h.offer(node.next);
+        }
+        return dummyHead.next;
+    }
+}
+```
+
+第十四个是LRU缓存，整体思路如下，偏记忆。
+
+```java
+// 哈希表+双向链表
+    // 哈希表：映射key->DLinked中的位置
+    // 双向链表：记录真实的键值对映射
+    // get的时候：
+    //  如果哈希表中不存在，返回-1
+    //  哈希表中存在，则找到双向链表中的结点位置
+    //  将该结点存到链表首部
+    // put的时候：
+    //  类似，存在就更新，不存在就插到头部
+    //  判断capacity，超出容量了就删掉队尾的元素（哈希表里面也删了）
+```

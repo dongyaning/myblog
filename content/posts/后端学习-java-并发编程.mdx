@@ -1,0 +1,796 @@
+---
+title: '并发编程'
+date: '2023-04-13'
+updated: '2023-04-13'
+description: '线程和进程 jvm是一个进程，main函数所在的线程是主线程。 java线程和操作系统线程的关系 现在基本上可以认为：java的线程就是操作系统的线程，而且是一对一的。 补充：jdk1.2之前是用户线程，之后就切换为内核线程了。 线程的生命'
+published: true
+category: '后端学习'
+tags: ['Java']
+---
+
+# 线程和进程
+
+JVM是一个进程，main函数所在的线程是主线程。
+
+## Java线程和操作系统线程的关系
+
+现在基本上可以认为：Java的线程就是操作系统的线程，而且是一对一的。
+
+补充：JDK1.2之前是用户线程，之后就切换为内核线程了。
+
+## 线程的生命周期和状态
+
+- NEW: 初始状态，线程被创建出来但没有被调用 `start()` 。
+- RUNNABLE: 运行状态，线程被调用了 `start()`等待运行的状态。
+
+- RUNNING
+- READY
+
+- BLOCKED：阻塞状态，需要等待锁释放。
+- WAITING：等待状态，表示该线程需要等待其他线程做出一些特定动作（通知或中断）。
+- TIME_WAITING：超时等待状态，可以在指定的时间后自行返回而不是像 WAITING 那样一直等待。
+- TERMINATED：终止状态，表示该线程已经运行完毕。
+
+这一部分整体理论性较强，直接看javaguide原文吧。
+
+# JMM内存模型（重点）
+
+JMM(Java 内存模型)主要定义了对于一个共享变量，当另一个线程对这个共享变量执行写操作后，这个线程对这个共享变量的可见性。
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-1.png)
+
+JMM 相当于定义了一套规范，实现了一些策略，来规避由CPU缓存模型和指令重排序带来的对于线程共享变量访问不一致问题，向外提供一套方法，可以方便地实现安全地并发编程。
+
+## CPU缓存模型
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-2.png)
+
+这个算比较熟悉，注意一点：一般的CPU都是三级cache.
+
+## 指令重排序：
+
+为了更高的执行速度/性能，编译器、CPU等会对指令做不影响语义前提下的重排序。这在单线程是没问题的，但多线程可能就会出现问题。
+
+## Java内存结构（即 JVM 中的内存管理部分）和JMM（内存模型）区别
+
+完全不一样的东西哈。
+
+Java 内存模型和 Java 的并发编程相关，**抽象了线程和主内存之间的关系**就比如说线程之间的共享变量必须存储在主内存中，规定了从 Java 源代码到 CPU 可执行指令的这个转化过程要遵守哪些和并发相关的原则和规范，其主要目的是为了简化多线程编程，增强程序可移植性的。
+
+## happens-before 原则
+
+happens-before 相当于是对一些特定关系，通过某种方式，实现了一种特殊目的。
+
+### 谁 和 谁之间构成happens-before
+
+简单列举几个：
+
+- **程序顺序规则**：一个线程内，按照代码顺序，书写在前面的操作 happens-before 于书写在后面的操作；
+- **解锁规则**：解锁 happens-before 于加锁；
+- **volatile 变量规则**：对一个 volatile 变量的写操作 happens-before 于后面对这个 volatile 变量的读操作。说白了就是对 volatile 变量的写操作的结果对于发生于其后的任何操作都是可见的。
+- **传递规则**：如果 A happens-before B，且 B happens-before C，那么 A happens-before C；
+- **线程启动规则**：Thread 对象的 `start()`方法 happens-before 于此线程的每一个动作。
+
+### A happens-before B 代表什么（特殊目的，某种方式不说哈，黑盒，JMM细节）
+
+- 如果一个操作 happens-before 另一个操作，那么第一个操作的执行结果将对第二个操作可见，并且第一个操作的执行顺序排在第二个操作之前。
+- 两个操作之间存在 happens-before 关系，并不意味着 Java 平台的具体实现必须要按照 happens-before 关系指定的顺序来执行。如果重排序之后的执行结果，与按 happens-before 关系来执行的结果一致，那么 JMM 也允许这样的重排序。
+
+总结就两点：
+
+1.  A的结果对B可见，原则上A发生在B之前。
+2.  如果A, B之间的重排序对结果无影响，JMM也允许这种重排序
+
+这个规则是对 程序员 和 编译器，处理器 之间的平衡。程序员要的是强内存模型，给出很强的实现和一套规范，按规范即可实现安全并发编程。但是编译器和处理器需要的是弱内存模型，可以更大程度地对代码和指令优化。
+
+### 示例
+
+```java
+int userNum = getUserNum();   // 1
+int teacherNum = getTeacherNum();   // 2
+int totalNum = userNum + teacherNum;  // 3
+
+// 1, 2 之间的相对顺序对结果无影响，虽然 1 happens-before 2，但JMM也允许对1,2重排序
+// 相当于规则是1 and 2 happens-before 3
+```
+
+# Volatile
+
+指示JVM，这个变量是共享且不稳定的，会通过JMM模型来保证这个变量的可见性，每次使用它都到内存中进行读取，相当于**禁用CPU缓存**。
+
+**在 Java 中，**`**volatile**` **关键字除了可以保证变量的\*\***可见性\***\*，还有一个重要的作用就是\*\***防止 JVM 的指令重排序\***\*。** 如果我们将变量声明为 `**volatile**` ，在对这个变量进行读写操作的时候，会通过插入特定的 **内存屏障** 的方式来禁止指令重排序。
+
+volatile可以保证变量的可见性，但无法保证原子性。
+
+这里的无法保证原子性就是说 一个线程对volatile的操作可能会中途被另一个线程打断。
+
+如 i++ 操作，分为三步：内存读、+1、写内存。
+
+# 乐观锁和悲观锁
+
+乐观锁和悲观锁都是一种锁的设计思想，是一种规范。
+
+## 悲观锁
+
+总是假设最坏的情况，认为共享资源每次被访问的时候就会出现问题。
+
+悲观锁下，共享资源每次只给一个线程使用，其它线程阻塞，用完后再把资源转让给其它线程。
+
+synchronized 和 ReentrantLock 等独占锁就是悲观锁思想的实现。
+
+但，显然高并发场景下，锁竞争会造成线程阻塞，同时存在死锁问题。
+
+## 乐观锁
+
+假设最好的情况，认为共享资源每次被访问的时候都不会出现问题，线程可以一直执行而无需加锁，无需等待，只在提交时验证对应的资源是否被其它线程修改了。
+
+高并发场景下，如果冲突频繁发生，也会非常影响性能。
+
+相对而言，悲观锁适合写操作多的场景，乐观锁适合写操作少的场景。
+
+### 乐观锁实现
+
+#### 版本号机制
+
+数据表中加上一个数据版本号字段，表示数据被修改的次数。提交更新时，若刚才读取到的 version 值为当前数据库中的 `version` 值相等时才更新，否则重试更新操作，直到更新成功。
+
+这个是应用层面的乐观锁实现，这看起来不是锁，但是乐观锁就是一种思想，具体的实现可能并不是传统的加锁形式。
+
+```sql
+-- 表结构
+CREATE TABLE account (
+    id INT PRIMARY KEY,
+    balance DECIMAL(10,2),
+    version INT DEFAULT 0
+);
+
+-- 1. 查询当前数据（假设 version=5）
+SELECT balance, version FROM account WHERE id = 1;
+
+-- 2. 更新时带上 version 条件
+UPDATE account
+SET balance = 1000, version = version + 1
+WHERE id = 1 AND version = ${version};
+
+-- 3. 检查 affected rows
+-- 如果返回 0 行受影响 → 说明 version 已变 → 更新失败
+```
+
+#### CAS（Compare And Swap）算法
+
+CAS是原子操作，依赖原子CPU指令。
+
+CAS 涉及到三个操作数：
+
+- **V**：要更新的变量值(Var)
+- **E**：预期值(Expected)
+- **N**：拟写入的新值(New)
+
+当且仅当 V 的值等于 E 时，CAS 通过原子方式用新值 N 来更新 V 的值。如果不等，说明已经有其它线程更新了 V，则当前线程重新尝试或放弃更新。
+
+由于 CAS 操作可能会因为并发冲突而失败，因此通常会与`while`循环搭配使用，在失败后不断重试，直到操作成功。这就是 **自旋锁机制** 。
+
+##### Java 中的 CAS
+
+Java 不直接提供 CAS 的实现，通过调用本地方法实现。`java.util.concurrent.atomic` 包提供了一些用于原子操作的类。这些类利用底层的原子指令，确保在多线程环境下的操作是线程安全的。
+
+```java
+// AtomicInteger 类的方法：
+// 原子地将当前值加 1 并返回加之前的值（旧值）
+// 使用 Unsafe#getAndAddInt 方法进行CAS操作。
+public final int getAndIncrement() {
+    return unsafe.getAndAddInt(this, valueOffset, 1);
+}
+
+// unsafa:
+// 原子地获取并增加整数值
+public final int getAndAddInt(Object o, long offset, int delta) {
+    int v;
+    do {
+        // 以 volatile 方式获取对象 o 在内存偏移量 offset 处的整数值
+        v = getIntVolatile(o, offset);
+    } while (!compareAndSwapInt(o, offset, v, v + delta));
+    // 返回旧值
+    return v;
+}
+// 可以看到 unsafe 内部使用的这种CAS方式，不断自旋读取值，并CAS根据最新值更新数据。
+```
+
+##### ABA问题
+
+前后相等，中间也可能被改过，解决方法是加入版本号或时间戳。AtomicStampedReference类就是用来解决ABA问题的。
+
+# synchronized
+
+之前是重量锁，因为建立在操作系统之上，操作系统切换线程需要用户态->内核态，比较耗时。后面JDK6引入大量优化，提高了性能，可以用在实际项目中。
+
+synchronized 是可重入的，可重入指的是同一个线程可以多次获取到同一把锁。
+
+## 使用
+
+构造函数不能用 synchronized 修饰，构造函数本身是线程安全的。但构造函数内部可以用synchronized代码块同步一些共享资源。
+
+### 修饰实例方法
+
+获得当前对象实例的锁
+
+### 修饰静态方法
+
+获得当前类的锁，和实例锁不互斥哈，不是锁住类了，全部实例对象的锁都锁住了。
+
+这里其实也不是类锁，也是对象锁，只不过作用的是当前类的.class 那个类对象!
+
+**“类锁”本质上就是“该类的** `**Class**` **对象的对象锁”。**
+
+### 修饰代码块
+
+括号里指定的对象/类
+
+### synchronized 实现机制
+
+​`**synchronized**` **同步语句块的实现使用的是** `**monitorenter**` **和** `**monitorexit**` **指令，其中** `**monitorenter**` **指令指向同步代码块的开始位置，**`**monitorexit**` **指令则指明同步代码块的结束位置。**
+
+Monitor是c++实现的本地方法，锁的结构都在里面。Monitor的指针在对象头的Mark Work里面存着。这个就类似信号量，因为 synchronized 是可重入锁，会维护一个锁计数器。
+
+# AQS（AbstractQueueSynchronize）
+
+AQS提供了一个通用框架，用于实现各种同步器，如可重入锁，信号量。AQS封装底层线程同步，将复杂的线程管理逻辑隐藏。
+
+简单来说，AQS 是一个抽象类，为同步器提供了通用的 **执行框架**。它定义了 **资源获取和释放的通用流程**，而具体的资源获取逻辑则由具体同步器通过重写模板方法来实现。 因此，可以将 AQS 看作是同步器的 **基础“底座”**，而同步器则是基于 AQS 实现的 **具体“应用”**。
+
+## AQS使用CLH锁队列的变体
+
+CLH是一种基于自旋锁的优化实现。
+
+CLH对自旋锁进行了改进：
+
+- 每个线程作为一个节点加入队列，自旋监控前一个节点的状态，而不是直接竞争共享变量。
+- 线程按顺序排队，确保公平性，避免饥饿问题。
+
+AQS进一步优化CLH：
+
+- 锁获取失败，先自旋尝试，还不行就阻塞等待被唤醒。
+- 队列改为双向队列，前驱可以直接唤醒后继，提高唤醒效率。
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-3.png)
+
+一个资源对应一个队列，第一个会获得锁。
+
+## AQS工作原理
+
+AQS的源码先放一放，感觉优先级不是那么高，等我有精力了再回头来看吧。 // TODO
+
+### 独占模式
+
+这里就从功能性上叙述一下工作原理，因为AQS是基础的通用框架，不够具体。所以这里是用Reentrantlock可重入锁来讲的。
+
+三个线程尝试获取同一个锁，分别为T1、T2、T3。
+
+线程T1先获取到锁，T2尝试获取锁，但是此时锁已经被T1持有，T2将进入队列。进入队列之前head的state为0，表示一种初始状态。进去之后，这里要注意T2是队列的head，而不是T1，这个队列是等待队列。改进CLH的头节点是一个哑结点，就是我们链表数据结构里面常用的那个头结点哈，T2会把前驱结点，也就是那个哑结点的状态设置为SIGNAL。所以当T1, T2请求后，队列如下：
+
+```latex
+此时队列结构：
+head → [dummy] → [T2]
+                ↑
+              tail
+```
+
+后面T1结束之后可以直接唤醒head.next。
+
+T3请求，加入队列，设置前面的T2 state = SIGNAL
+
+T1退出后，T2获取到锁，退出队列（T2成为新的head），以此类推。
+
+### 共享模式
+
+当资源可用时，尽可能多地唤醒等待线程，而不是只唤醒一个。
+
+共享模式的核心是传播性，唤醒head.next，获取成功继续唤醒下一个。
+
+#### Semaphore信号量
+
+用来控制同时访问特定资源的线程数量。也就是说，信号量的资源数不一定为1，如果为1，就退化为排他锁。
+
+两种模式：
+
+##### 公平模式
+
+公平也就是先进先出FIFO，和独占模式的区别就是资源数不一定是1，一个线程占了只是减去资源数，如果>0，后面的线程还可以获得资源。没资源就直接入等待队列，前面的线程执行完毕后就会唤醒head.next了。
+
+##### 非公平模式
+
+和公平模式的区别仅仅是：在入等待队列之前，新线程会尝试抢一下，没抢到才入队列。进入队列之后行为和公平模式相同。
+
+#### CountDownLatch 倒计时器
+
+让一个或多个线程阻塞，直到“倒计时”归零。
+
+只能减，一次性使用。就是线程调用await会进入等待队列，任意线程都可以调用countdown让计数器减1，减到0就唤醒所有等待线程。
+
+##### 应用
+
+主线程等待多个子线程完成：
+
+```java
+CountDownLatch latch = new CountDownLatch(3);
+
+for (int i = 0; i < 3; i++) {
+    new Thread(() -> {
+        try {
+            // 执行任务...
+        } finally {
+            latch.countDown(); // 确保一定调用
+        }
+    }).start();
+}
+
+latch.await(); // 主线程等待
+System.out.println("All tasks done!");
+```
+
+发令枪，多个线程同时开始工作：
+
+```java
+CountDownLatch startSignal = new CountDownLatch(1);
+CountDownLatch doneSignal = new CountDownLatch(5);
+
+for (int i = 0; i < 5; i++) {
+    new Thread(() -> {
+        startSignal.await(); // 等待发令枪
+        // 同时开始工作...
+        doneSignal.countDown();
+    }).start();
+}
+
+// 准备好后，统一启动
+startSignal.countDown();
+doneSignal.await(); // 等待全部完成
+```
+
+#### CylicBarrier 循环栅栏
+
+类似倒计时器，更复杂和强大，应用场景和倒计时器类似。
+
+它要做的事情是：让一组线程到达一个屏障（也可以叫同步点）时被阻塞，直到最后一个线程到达屏障时，屏障才会开门，所有被屏障拦截的线程才会继续干活。
+
+`CyclicBarrier` 内部通过一个 `count` 变量作为计数器，`count` 的初始值为 `parties` 属性的初始化值，每当一个线程到了栅栏这里了，那么就将计数器减 1。如果 count 值为 0 了，表示这是这一代最后一个线程到达栅栏，就尝试执行我们构造方法中输入的任务。
+
+核心用途：**N 个线程彼此等待，全部到齐后集体放行，且可重复使用。**  
+五个线程并行计算：
+
+```java
+CyclicBarrier barrier = new CyclicBarrier(5, () -> {
+    System.out.println("本轮计算完成，准备下一轮...");
+});
+
+for (int round = 0; round < 3; round++) {
+    for (int i = 0; i < 5; i++) {
+        new Thread(() -> {
+            try {
+                // 模拟工作
+                Thread.sleep(new Random().nextInt(1000));
+                System.out.println(Thread.currentThread().getName() + " 完成工作");
+
+                // 等待其他线程
+                barrier.await();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }).start();
+    }
+    Thread.sleep(2000); // 等待本轮线程启动
+}
+```
+
+# ReetrantLock
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-4.png)
+
+实现了Lock，内部基于AQS，更强大的锁，增加了轮询、超时、中断、公平锁和非公平锁等高级功能。
+
+## Syncronized 和 ReentrantLock的区别
+
+这两个都是可重入锁，可重入锁又叫递归锁，指线程可以再次获取自己的内部锁。
+
+区别在于：ReentrantLock比synchronized增加了一些高级功能。
+
+- 等待可中断
+
+- 就是在等待获取锁的时候，可以被其他线程中断，抛出一个异常，可以捕获异常并处理。
+
+- 可实现公平锁
+- 支持超时
+
+- 可以防止死锁
+- 提高响应速度，不用一直等着
+
+# ReentrantReadWriteLock
+
+读写锁。
+
+一般的锁是各种操作都互斥，读读也互斥。
+
+读写锁就是读读不互斥，其它的互斥。
+
+内部实现就是两把锁，一把读锁，共享锁；一把写锁，独占锁。
+
+适合读多写少的场景。
+
+注意一点：持有读锁不能再获得写锁，但是持有写锁可以获得读锁。
+
+换句话说，就是读锁不能升级为写锁。
+
+原因：
+
+- 读锁升级为写锁会引起线程争夺，影响效率。
+- 同时，还可能会产生死锁（读写互斥）
+
+- **T1**：获取读锁 → 检查数据 → 决定要写 → 尝试获取写锁（阻塞，因为有读锁存在）
+- **T2**：也获取读锁（读锁可重入、可共享）→ 同样决定要写 → 尝试获取写锁（也阻塞）
+
+- 数据不一致
+
+- 别的读锁还在持有，一个升级为写锁了，那就读写不互斥了。
+
+**要获取写锁必须没有人在读写，只要有人在读或在写就会阻塞。**
+
+# Atomic 原子类
+
+就是提供了一些线程安全的方式来操作变量。
+
+## 基本类型
+
+- `AtomicInteger`：整型原子类
+- `AtomicLong`：长整型原子类
+- `AtomicBoolean`：布尔型原子类
+
+上面三个类提供的方法几乎相同，所以我们这里以 `AtomicInteger` 为例子来介绍。
+
+```java
+public final int get() //获取当前的值
+public final int getAndSet(int newValue)//获取当前的值，并设置新的值
+public final int getAndIncrement()//获取当前的值，并自增
+public final int getAndDecrement() //获取当前的值，并自减
+public final int getAndAdd(int delta) //获取当前的值，并加上预期的值
+boolean compareAndSet(int expect, int update) //如果输入的数值等于预期值，则以原子方式将该值设置为输入值（update）
+public final void lazySet(int newValue)//最终设置为newValue, lazySet 提供了一种比 set 方法更弱的语义，可能导致其他线程在之后的一小段时间内还是可以读到旧的值，但可能更高效。
+```
+
+## 引用类型
+
+## 引用字段修改类型
+
+# ThreadLocal
+
+就是线程的独立数据，每个线程有一个副本。这样就不会出现线程安全问题了，变成线程私有，不是共享数据了。
+
+## 底层原理
+
+在Thread类中存着有ThreadLocal类的静态内部类ThreadLocalMap，这个Map结构是真正存数据的地方。
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-5.png)
+
+也就是说，每个Thread里面都有一个Map，这个Map的Key为 ThreadLocal，value为我们给ThreadLocal变量设置的那个值。因为一个线程可能有好多个ThreadLocal变量。
+
+```java
+public void set(T value) {
+    //获取当前请求的线程
+    Thread t = Thread.currentThread();
+    //取出 Thread 类内部的 threadLocals 变量(哈希表结构)
+    ThreadLocalMap map = getMap(t);
+    if (map != null)
+        // 将需要存储的值放入到这个哈希表中
+        map.set(this, value);
+    else
+        createMap(t, value);
+}
+ThreadLocalMap getMap(Thread t) {
+    return t.threadLocals;
+}
+```
+
+## ThreadLocal内存泄漏
+
+### 泄露原因
+
+主要在于ThreadLocal的内部实现机制，ThreadLocalMap中的key是对ThreadLocal的弱引用，如果没有强引用指向，就会被GC。但是val是强引用，Entry会一直存在，就导致内存为null的entry无法被回收。
+
+### 解决方案
+
+**使用完ThreadLocal后主动调用 remove() 方法**，此方法会显示移除对应的entry。
+
+## 跨线程传递ThreadLocal值
+
+### 为什么用ThreadLocal进行隔离，又要进行线程间传递？
+
+在整体隔离下，实现有限的传递能力。比如“异步场景下父子进程 ThreadoLocal 值传递”，因为父子进程是属于不同的线程的。
+
+实现有 JDK的 InheritableThreadLocal（线程池中无法传递）和 阿里开源的 TransmittableThreadLocal（支持线程池线程间传递）。
+
+#### InheritableThreadLocal
+
+Thread 类中除了 ThreadLocals，还有一个 inherittableThreadLocals，用来存储需要继承给子类的ThreadLocalMap.
+
+```java
+class Thread implements Runnable {
+    ThreadLocal.ThreadLocalMap threadLocals = null;
+    ThreadLocal.ThreadLocalMap inheritableThreadLocals = null;
+}
+```
+
+创建Thread时，将父线程的 inheritableThreadLocals 赋值给子线程即可。
+
+```java
+// Thread 的构造方法会调用 init() 方法
+private void init(/* ... */) {
+	// 1、获取父线程
+    Thread parent = currentThread();
+    // 2、将父线程的 inheritableThreadLocals 赋值给子线程
+    if (inheritThreadLocals && parent.inheritableThreadLocals != null)
+        this.inheritableThreadLocals =
+        	ThreadLocal.createInheritedMap(parent.inheritableThreadLocals);
+}
+```
+
+#### TransmittableThreadLocal
+
+JDK 默认没有支持线程池场景下 `ThreadLocal` 值传递的功能，因此阿里巴巴开源了一套工具 `TransmittableThreadLocal` 来实现该功能。
+
+# 线程池
+
+管理一系列线程的资源池。有任务要处理时，直接从线程池中获取线程来处理，处理后不销毁，继续等待下一个任务。
+
+## 为什么用线程池
+
+不管是线程池，还是其它的什么池，如数据库连接池，HTTP连接池等等都是对这个思想的应用。池化技术的思想主要是为了减少每次获取资源的消耗，提高对资源的利用率。相当于空间换时间。
+
+主要有如下好处：
+
+- 降低资源消耗
+- 提高响应速度
+- 提高线程的可管理性
+
+## 创建线程池
+
+### ThreadPoolExecutor 直接创建（推荐）
+
+这是最推荐的方式，因为它允许开发者明确指定线程池的核心参数，对线程池的运行行为有更精细的控制，从而避免资源耗尽的风险。
+
+### Executors 工具类（不推荐生产）
+
+就是封装好的一些默认配置。 不推荐使用。
+
+- `FixedThreadPool` 和 `SingleThreadExecutor`:使用的是阻塞队列 `LinkedBlockingQueue`，任务队列最大长度为 `Integer.MAX_VALUE`，可以看作是无界的，可能堆积大量的请求，从而导致 OOM。
+- `CachedThreadPool`:使用的是同步队列 `SynchronousQueue`, 允许创建的线程数量为 `Integer.MAX_VALUE` ，如果任务数量过多且执行速度较慢，可能会创建大量的线程，从而导致 OOM。
+- `ScheduledThreadPool` 和 `SingleThreadScheduledExecutor`:使用的无界的延迟阻塞队列`DelayedWorkQueue`，任务队列最大长度为 `Integer.MAX_VALUE`,可能堆积大量的请求，从而导致 OOM。
+
+## 线程池常见参数
+
+`ThreadPoolExecutor` 3 个最重要的参数：
+
+- `corePoolSize` : 任务队列未达到队列容量时，最大可以同时运行的线程数量。（核心线程数量）
+
+- 核心线程默认不会被空闲回收，但是可以指定allowCoreThreadTimeout(true) 来允许回收，空闲时间也由KeepAliveTime指定。
+
+- `maximumPoolSize` : 任务**队列中存放的任务达到队列容量的时候**，当前可以同时运行的线程数量变为最大线程数。（最大线程数）
+- `workQueue`: 新任务来的时候会先判断当前运行的线程数量是否达到核心线程数，如果达到的话，新任务就会被存放在队列中。
+
+`ThreadPoolExecutor`其他常见参数 :
+
+- `keepAliveTime`:当线程池中的线程数量大于 `corePoolSize` ，即有非核心线程（线程池中核心线程以外的线程）时，这些非核心线程空闲后不会立即销毁，而是会等待，直到等待的时间超过了 `keepAliveTime`才会被回收销毁。
+
+- 非核心线程是工作队列满了，临时创建的，最多不超过maximumPoolSize个。
+
+- `unit` : `keepAliveTime` 参数的时间单位。
+- `threadFactory` :executor 创建新线程的时候会用到。
+- `handler` :拒绝策略（后面会单独详细介绍一下）。
+
+线程池的核心执行流程：
+
+```java
+public void execute(Runnable command) {
+    if (command == null) throw new NullPointerException();
+
+    int c = ctl.get();
+
+    // 1️⃣ 如果当前线程数 < corePoolSize → 创建核心线程
+    if (workerCountOf(c) < corePoolSize) {
+        if (addWorker(command, true)) // true 表示按 corePoolSize 限制
+            return;
+        c = ctl.get();
+    }
+
+    // 2️⃣ 如果线程池正在运行 → 尝试把任务加入工作队列
+    if (isRunning(c) && workQueue.offer(command)) {
+        // ✅ 任务入队成功，不需要创建新线程
+        return;
+    }
+
+    // 3️⃣ 队列满了 or 线程池已 shutdown → 尝试创建非核心线程
+    if (!addWorker(command, false)) { // false 表示按 maximumPoolSize 限制
+        // 4️⃣ 创建失败（已达 maximumPoolSize）→ 执行拒绝策略
+        reject(command);
+    }
+}
+```
+
+## 线程状态和调度机制
+
+线程在空闲的时候处于 WATTING 状态，如果没设置超时时间，就会一直处于这个状态。设置了超时时间到了时间就会被移除，变为 TERMINATED。
+
+队列中有可用任务时，唤醒被阻塞的线程，状态变为RUNABLE。
+
+如果设置了超时时间，或者是非核心线程本来就有超时时间，会设置timed = true。
+
+- `timed == true` ：使用 `poll(timeout, unit)` 来获取任务。使用 `poll(timeout, unit)` 方法获取任务超时的话，则当前线程会退出执行（ `TERMINATED` ），该线程从线程池中被移除。
+- `timed == false` ：使用 `take()` 来获取任务。使用 `take()` 方法获取任务会让当前线程一直阻塞等待（`WAITING`）。
+
+## 拒绝策略
+
+- `ThreadPoolExecutor.AbortPolicy`：抛出 `RejectedExecutionException`来拒绝新任务的处理。（默认）
+- `ThreadPoolExecutor.CallerRunsPolicy`：调用执行者自己的线程运行任务，也就是直接在调用`execute`方法的线程中运行(`run`)被拒绝的任务，如果执行程序已关闭，则会丢弃该任务。因此这种策略会降低对于新任务提交速度，影响程序的整体性能。如果你的应用程序可以承受此延迟并且你要求任何一个任务请求都要被执行的话，你可以选择这个策略。
+- `ThreadPoolExecutor.DiscardPolicy`：不处理新任务，直接丢弃掉。
+- `ThreadPoolExecutor.DiscardOldestPolicy`：此策略将丢弃最早的未处理的任务请求。
+
+默认是第一个，抛出异常，但是这样就相当于是请求丢了。
+
+如果不想丢请求，显然第二个最合适，但是第二个是把请求交给调用者线程去运行，如果这个线程是主线程，任务又比较耗时，就可能会阻塞系统。
+
+解决这个问题，本质上是希望所有所有的任务都能被执行。首先考虑增大阻塞队列大小，增加最大线程数。但是这些东西受限于硬件资源，如果硬件资源已达上限，就需要设计额外的策略了。
+
+一个思路是持久化，就是将现在处理不了的任务保存到 MySQL、Redis、消息队列里边。
+
+以保存到MySQL为例，需要自定义拒绝策略和阻塞队列，拒绝的时候入队。取任务的时候先看数据库里面的，数据库没有了再去拿 BlockingQueue 队列的任务。
+
+也可以参考一些主流框架的实现，如Netty 直接创建一个线程池之外的线程，这需要较高的硬件资源。ActiveMQ则是尝试在指定的时间内尽可能争取一下，争取不到再抛异常。
+
+## 常用阻塞队列
+
+- ArrayBlockingQueue：有界阻塞队列，初始时指定大小。先进先出，公平/非公平可选。
+- LinkedBlockingQueue：默认无界（慎用，可能 OOM），可指定有界。基于链表。
+- SynchronousQueue：容量为 0，不存储元素。每个 put 必须等待一个线程。
+- PriorityBlockingQueue：支持优先级。任务需要可比较，按优先级出队，无界。
+- DelayQueue：延迟执行队列，根据延迟时间排序。
+
+基本原则：**有界防崩，无界慎用，移交提速，优先级特殊。**
+
+## 线程报异常，销毁/复用
+
+简单来说：使用`execute()`时，未捕获异常导致线程终止，线程池创建新线程替代；使用`submit()`时，异常被封装在`Future`中，线程继续复用。
+
+这种设计允许`submit()`提供更灵活的错误处理机制，因为它允许调用者决定如何处理异常，而`execute()`则适用于那些不需要关注执行结果的场景。
+
+## 线程池命名
+
+方便定位问题。
+
+1.  利用guava的ThreadFactoryBuilder，提供了一个ThreadFactory工厂实现类。
+2.  自己实现ThreadFactory
+
+```java
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+
+/**
+ * 线程工厂，它设置线程名称，有利于我们定位问题。
+ */
+public final class NamingThreadFactory implements ThreadFactory {
+
+    private final AtomicInteger threadNum = new AtomicInteger();
+    private final String name;
+
+    /**
+     * 创建一个带名字的线程池生产工厂
+     */
+    public NamingThreadFactory(String name) {
+        this.name = name;
+    }
+
+    @Override
+    public Thread newThread(Runnable r) {
+        Thread t = new Thread(r);
+        t.setName(name + " [#" + threadNum.incrementAndGet() + "]");
+        return t;
+    }
+}
+```
+
+## 线程池大小设定（线程数量）
+
+不是越多越好，主要是充分利用多核CPU，同时又不能造成大量的上下文切换。（线程数设置的多了肯定就是时间片轮转了，对于CPU密集型任务来说比较费时间）。
+
+推荐：
+
+- CPU密集型：CPU核数 + 1，+1是因为为了应对偶然的缺页中断或者别的什么情况。
+- IO密集型：2 \* CPU核数。这样可以更充分利用CPU，因为线程在进行IO的时候是不占CPU的，对于这种任务来说线程数多一点才能充分利用CPU资源。
+
+具体还是要根据项目和服务器实际情况来配置。
+
+## 动态配置线程池参数
+
+主要就是针对上面说的三个核心参数。
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-6.png)
+
+核心线程数和最大线程数都有set方法，但是阻塞队列的大小没有设置的方法。
+
+参考美团的做法是自定义了一个叫做ResizableCapacityLinkedBlockIngQueue的队列，主要就是把LinkedBlockingQueue中的capacity字段的final关键字去掉，改为可变的。
+
+## 设计能够根据任务的优先级执行的线程池
+
+这个主要就是阻塞队列的设计，因为如果不需要放进阻塞队列，就可以运行，无所谓优先级了。阻塞队列就用PriorityBlockingQueue优先级阻塞队列作为任务队列（也是堆数据结构）。传入的东西需要具备排序能力（实现 Comparable 接口）或传入Comparator。
+
+# Future
+
+就是异步调用，交给一个子线程去异步执行，主线程可以干别的事，干完了可以通过Future获取执行结果。Future是一种设计模式，是一种思想，非Java独有。
+
+```java
+// V 代表了Future执行的任务返回值的类型
+public interface Future<V> {
+    // 取消任务执行
+    // 成功取消返回 true，否则返回 false
+    boolean cancel(boolean mayInterruptIfRunning);
+    // 判断任务是否被取消
+    boolean isCancelled();
+    // 判断任务是否已经执行完成
+    boolean isDone();
+    // 获取任务执行结果
+    V get() throws InterruptedException, ExecutionException;
+    // 指定时间内没有返回计算结果就抛出 TimeOutException 异常
+    V get(long timeout, TimeUnit unit)
+
+        throws InterruptedException, ExecutionException, TimeoutExceptio
+}
+```
+
+Future的具体实现由实现类 FutureTask完成。
+
+此外，Future存在一些问题，如不支持异步任务的编排组合，获取计算结果的get方法为阻塞调用。
+
+Java 8 引入了 CompletableFuture 解决Future 的这些缺陷。
+
+![image.png](/images/posts/后端学习-java-并发编程/并发编程-7.png)
+
+对CompletionStage接口的实现提供了任务编排能力。
+
+## T3的执行需要依赖T1、T2
+
+使用CompletableFuture 的 allOf方法封装T1和T2。
+
+```java
+// T1
+CompletableFuture<Void> futureT1 = CompletableFuture.runAsync(() -> {
+    System.out.println("T1 is executing. Current time：" + DateUtil.now());
+    // 模拟耗时操作
+    ThreadUtil.sleep(1000);
+});
+// T2
+CompletableFuture<Void> futureT2 = CompletableFuture.runAsync(() -> {
+    System.out.println("T2 is executing. Current time：" + DateUtil.now());
+    ThreadUtil.sleep(1000);
+});
+
+// 使用allOf()方法合并T1和T2的CompletableFuture，等待它们都完成
+CompletableFuture<Void> bothCompleted = CompletableFuture.allOf(futureT1, futureT2);
+// 当T1和T2都完成后，执行T3
+bothCompleted.thenRunAsync(() -> System.out.println("T3 is executing after T1 and T2 have completed.Current time：" + DateUtil.now()));
+// 等待所有任务完成，验证效果
+ThreadUtil.sleep(3000);
+```
+
+## 使用自定义线程池
+
+CompletableFuture 默认使用一个全局的 ForkJoinPool.commonPool() 作为线程池，多个应用程序共用这一个线程池会产生性能问题。
+
+提供自定义线程池可以隔离不同程序，同时提高控制性，更高效。
+
+```java
+private ThreadPoolExecutor executor = new ThreadPoolExecutor(10, 10,
+        0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<Runnable>());
+
+CompletableFuture.runAsync(() -> {
+     //...
+}, executor);
+```

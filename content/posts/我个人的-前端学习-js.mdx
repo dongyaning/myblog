@@ -1,0 +1,400 @@
+---
+title: 'js'
+date: '2025-09-28'
+updated: '2025-09-28'
+description: '闭包 闭包的定义：闭包是指有权访问另外一个函数作用域中的变量的函数。 闭包 = 函数 + 其语法作用域的引用 即：一个函数能访问并记住其外部作用域中的变量，即使在其外部函数执行完毕后。 内部函数依赖的对象会被保存到堆中，因为还有引用，所以不'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# 闭包
+
+闭包的定义：**闭包是指有权访问另外一个函数作用域中的变量的\*\***函数\*\*。
+
+闭包 = 函数 + 其语法作用域的引用
+
+即：**一个函数能访问并记住其外部作用域中的变量，即使在其外部函数执行完毕后。**
+
+内部函数依赖的对象会被保存到堆中，因为还有引用，所以不会被 GC。可以通过函数.[\[scope]\] 隐藏变量查看。
+
+# 数据类型转换
+
+\-、\*、/、%一律转换成数值后计算。
+
++：
+
+- 数字 + 字符串 = 字符串， 运算顺序是从左到右
+- 数字 + 对象， 优先调用对象的`valueOf -> toString`
+- 数字 + `boolean/null` \-> 数字
+- 数字 + `undefined` -> `NaN`
+
+JS 类型转换只有三种情况：
+
+1.  转换为布尔
+
+1.  除了 `undefined`，`null`， `false`， `NaN`， `''`， `0`， `-0`，其他所有值都转为 `true`，包括所有对象
+
+1.  转换为数字
+1.  转换为字符串
+
+# Event Loop
+
+为了使单线程 JS 支持异步，正确的一次 Event Loop 顺序是这样的：
+
+1.  执行同步代码，这属于宏任务
+2.  执行栈为空，查询是否有微任务需要执行
+3.  执行所有微任务
+4.  必要的话渲染 UI
+5.  开始下一轮 Event Loop
+
+区分宏任务和微任务实际上就是一种优先级的概念，微任务的优先级更高，所以每次都先把微任务执行完。
+
+- **宏任务包括**：`setTimeout`、`setInterval`、`requestAnimationFrame`、`Ajax`、`fetch`、`script`（浏览器会先执行一个宏任务，接下来有异步代码的话就先执行微任务） 标签的代码
+- **微任务包括**：`Promise.then（catch、finally）`、`MutationObserver`、`Object.observe`、`queueMicrotask()`
+
+当一个 Promise 状态变为 resolved 或 rejected 时，其回调会被推入微任务队列。
+
+MutationObserver 用于监听 DOM 树的变化，当 DOM 发生改变时，对应的回调会作为微任务执行。这个可以监听特定结点，并传入配置，
+
+```javascript
+// Create an observer instance linked to the callback function
+const observer = new MutationObserver(callback)
+
+// Start observing the target node for configured mutations
+observer.observe(targetNode, config)
+```
+
+# 深浅拷贝
+
+## 浅拷贝
+
+Object.assign(target, source1, source2, ...)
+
+扩展运算符
+
+- 它不会拷贝对象的继承属性；
+- 它不会拷贝对象的不可枚举的属性；
+- 可以拷贝 `Symbol` 类型的属性。
+
+## 深拷贝
+
+JSON.stringify()
+
+局限：
+
+- 会忽略 `undefined`
+- 会忽略 `symbol`
+- 不能序列化函数
+- 无法拷贝不可枚举的属性
+- 无法拷贝对象的原型链
+- 拷贝 `RegExp` 引用类型会变成空对象
+- 拷贝 `Date` 引用类型会变成字符串
+- 对象中含有 `NaN`、`Infinity` 以及 `-Infinity`，`JSON` 序列化的结果会变成 `null`
+- 不能解决循环引用的对象，即对象成环 (`obj[key] = obj`)。
+
+但是这些问题在一般的开发环境中都是无关紧要的，并且是最简单和快捷的。
+
+手动实现深拷贝（生产环境更多是用 lodash 那种三方库）：
+
+```javascript
+const isComplexDataType = (obj) =>
+  (typeof obj === 'object' || typeof obj === 'function') && obj !== null
+
+const deepClone = function (obj, hash = new WeakMap()) {
+  if (obj.constructor === Date) {
+    return new Date(obj) // 日期对象直接返回一个新的日期对象
+  }
+
+  if (obj.constructor === RegExp) {
+    return new RegExp(obj) //正则对象直接返回一个新的正则对象
+  }
+
+  //如果循环引用了就用 weakMap 来解决
+  if (hash.has(obj)) {
+    return hash.get(obj)
+  }
+
+  //遍历传入参数所有键的特性
+  let cloneObj = {}
+
+  // 把cloneObj原型复制到obj上
+  hash.set(obj, cloneObj)
+
+  for (let key of Reflect.ownKeys(obj)) {
+    cloneObj[key] =
+      isComplexDataType(obj[key]) && typeof obj[key] !== 'function'
+        ? deepClone(obj[key], hash)
+        : obj[key]
+  }
+  return cloneObj
+}
+
+function Person() {
+  this.name = 'xiaoming'
+}
+
+Person.prototype.age = 12
+
+const clonePerson = deepClone(new Person())
+
+console.log(clonePerson.age)
+```
+
+```javascript
+// 手写深拷贝
+function deepClone(obj, hash = new WeakMap()) {
+  // 如果是基本数据类型，就可以直接返回
+  if (obj === null || (typeof obj !== 'object' && typeof obj !== 'function')) return obj
+
+  // 如果是特殊的对象类型，可以直接返回
+  if (obj instanceof Date) return new Date(obj)
+  else if (obj instanceof RegExp) return new RegExp(obj)
+
+  // 使用WeakMap解决循环引用问题
+  if (hash.has(obj)) return hash.get(obj)
+
+  // 需要把所有的属性都拷贝，包括不可遍历属性和Symbol
+  const allDesc = Object.getOwnPropertyDescriptors(obj)
+  const cloneObj = Object.create(null, allDesc)
+
+  hash.set(obj, cloneObj)
+
+  for (let key of Reflect.ownKeys(obj)) {
+    if (key) cloneObj[key] = deepClone(obj[key], hash)
+  }
+
+  return cloneObj
+}
+
+function Person() {
+  this.name = 'xx'
+}
+
+Person.prototype.age = 2
+
+const clonePerson = deepClone(new Person())
+
+console.log(clonePerson.age)
+```
+
+​
+
+# 数组
+
+- `map`: 遍历数组，返回回调返回值组成的新数组
+- `forEach`: 无法`break`，可以用`try/catch`中`throw new Error`来停止
+- `filter`: 过滤
+- `some`: 有一项返回`true`，则整体为`true`
+- `every`: 有一项返回`false`，则整体为`false`
+- `join`: 通过指定连接符生成字符串
+- `push / pop`: 末尾推入和弹出，改变原数组， 返回推入/弹出项
+- `unshift / shift`: 头部推入和弹出，改变原数组，返回操作项
+- `sort(fn) / reverse`: 排序与反转，改变原数组
+- `concat`: 连接数组，不影响原数组， 浅拷贝
+- `slice(start, end)`: 返回截断后的新数组，不改变原数组
+- `splice(start, number, value...)`: 返回删除元素组成的数组，`value`为插入项，改变原数组
+- `indexOf / lastIndexOf(value, fromIndex)`: 查找数组项，返回对应的下标
+- `reduce / reduceRight(fn(prev, cur)`， `defaultPrev)`: 两两执行，`prev` 为上次化简函数的`return`值，`cur`为当前值(从第二项开始)
+
+# 定时器相关
+
+## setInterval
+
+因为定时器内的代码执行也需要时间，为了防止连续执行，js 引擎通常只会在**队列中没有由相同定时器创建的回调时，才将定时器代码添加到队列中**。也就是说，浏览器是每隔一个间隔，就尝试塞入队列，如果里面还有上一个没执行的，就不塞（如果正在执行也塞）。
+
+但是，这依然有问题：可能会导致某些间隔被跳过（代码执行时间过长）或者是间隔小于预期。
+
+## 链式调用 setTimeout
+
+```javascript
+setTimeout(function fn() {
+  console.log('我是setTimeout')
+  setTimeout(fn, 1000)
+}, 1000)
+```
+
+这种方式一定不会连续执行，因为每次都是执行完才创建新的定时器。
+
+# 继承
+
+这个记住寄生组合继承就行，标准 API 基本也是这么实现的
+
+```javascript
+function Parent() {
+  this.name = xxx
+  this.play = xxx
+}
+
+function Child() {
+  // 继承父类属性
+  Parent.call(this)
+  // 声明子类属性
+  this.xx = xx
+}
+
+// 连接原型链
+Child.prototype = Object.create(Parent.prototype)
+Child.prototype.constructor = Parent
+```
+
+# 原型链
+
+首先描述什么是原型链。
+
+所有的对象（非 null），创建时都会关联一个原型对象。Object.getPrototype()
+
+当访问对象的属性时，如果对象本身找不到，则会去原型对象上找，找不到继续找原型对象的原型对象，直到 Object.prototype，返回 undefined。
+
+## 开发中对于原型链的应用
+
+首先是继承，虽然 ES6+有了 extends，但在 6 之前和 6+本质上都是通过原型链实现的继承。
+
+通过把某类对象共享的方法提升到原型对象，可以避免创建多个函数副本，性能优化。
+
+polyfill 也是通过原型链去实现的。
+
+在 `for...in` 循环时，会遍历出原型链上的属性。通常需要用 `obj.hasOwnProperty(key)` 来过滤掉非自身的属性。
+
+同时，这也是一把双刃剑，要控制原型链的长度。查找原型链是耗时的。如果访问一个不存在的属性，JS会遍历整条链，这在深层继承时会有性能开销。
+
+现代 JS 引擎对原型查找做了深度优化，如果频繁修改 `__proto__` 或者 `Object.prototype`，会触发引擎的优化失效（de-optimization），导致性能剧降。
+
+# 遍历总结
+
+**传统 for 循环**
+
+这是最底层的遍历方式，可以遍历数组和类数组。
+
+优点：灵活，逻辑自主可控，支持 continue, break 等。
+
+缺点：语法冗长，需要手动维护索引 i。
+
+**for ... in**
+
+专门为对象设计的遍历方式
+
+```javascript
+const obj = { a: 1, b: 2 }
+Object.prototype.c = 3 // 污染原型链
+
+for (let key in obj) {
+  if (obj.hasOwnProperty(key)) {
+    // 必须手动过滤原型链属性
+    console.log(key, obj[key])
+  }
+}
+```
+
+会遍历出原型链上的可枚举属性，如果这非本意（大多数时候都不是本意），需要手动过滤。
+
+**for ... of**
+
+可迭代对象的收割机，遍历的是键值，适用于实现了 Symbol.iterator 接口的对象，包括：数组、字符串、Set、Map、arguments 等。
+
+优点：语法简洁，**不遍历原型链**，支持 break 等，支持异步遍历 for await ... of。
+
+局限：不能直接遍历普通对象（Object 未实现上述接口）。
+
+遍历对象可以通过：
+
+- 使用 `Object.keys(obj)` 获取键名数组，再进行 `for...of`。
+- 使用 `Object.values(obj)` 直接获取值。
+- 使用 `Object.entries(obj)` 同时获取键和值。
+
+**forEach**
+
+数组自带的一个原型方法。
+
+无法被中断！break 等无效，只能抛出异常停止（不推荐）。
+
+# 事件冒泡
+
+简单来说，**事件冒泡（Event Bubbling）** 就是当一个元素上的事件被触发时，这个事件会像水底的气泡一样，一层一层地向上传递给它的父级元素，直到到达最顶层的 `window` 对象。
+
+这其实是浏览器处理事件的一种层级逻辑。它的核心意义在于：**父元素可以预知并处理子元素发生的动作。**
+
+- **优点**：可以实现“**事件委托（Event Delegation）**”，非常省性能（稍后细说），这个是冒泡的最大好处。
+- **缺点**：有时候你只想点击按钮，结果意外触发了父容器的弹窗，这就是所谓的“误伤”。
+
+控制：
+
+- 阻止冒泡：`event.stopPropagation()`
+- 彻底切断：`event.stopImmediatePropagation()`
+
+- 它不仅阻止事件冒泡，还会阻止该元素上绑定的**其他**相同类型的事件处理函数执行。
+
+# Promise
+
+`Promise` 是 JavaScript 处理异步编程的基石。可以把 Promise 想象成一个“承诺协议”：它封装了一个异步操作，并承诺在未来某个时间点给你一个结果。
+
+Promise 的本质是一个状态机，状态的改变是不可逆的。
+
+- Pending：进行中，初始状态。
+- Fulfilled：已成功，调用了 reslove。
+- Rejected：操作失败，调用了 reject。
+
+状态一旦从 Pending 变为了 Settled，就再也无法更改。
+
+这里详细说一下，**在 Promise 中对于成功和失败的定义**：
+
+如果不是用的 axios 这种三方库，对于网络请求返回 4xx，5xx 的请求，也被认为是成功的，因为服务器是成功响应的。（axios 做了特殊处理，不是 2xx 就调用 reject）。
+
+成功一定是调用了 resolve，失败也一定是 reject，如果一直没有调用二者其一，Promise 会一直处于 Pending 状态。
+
+resolve -> 进入 then
+
+reject / exception -> 进入 catch
+
+全部 -> 进入 finnally
+
+## 静态方法
+
+| **方法**             | **逻辑**               | **场景**                     |
+| -------------------- | ---------------------- | ---------------------------- |
+| `Promise.all`        | **全胜才胜**，一败涂地 | 多个强依赖请求（如合并展示） |
+| `Promise.allSettled` | **全员终点**，不论成败 | 批量上传、批量下载           |
+| `Promise.race`       | **快者为王**，不论成败 | 接口超时控制                 |
+| `Promise.any`        | **首个成功**，全败才败 | 多服务器镜像拉取资源         |
+
+如果 Promise.all 里面的一个请求报错了，只是提前 reject 了，发出去的 HTTP 请求是已经发出去了。
+
+## Promise 的三大缺点
+
+虽然 Promise 解决了回调地狱，但它并不是完美的：
+
+1.  **无法中途取消**：一旦 `new Promise` 建立，它就会立即执行，你无法在它进行到一半时“勒令停止”。
+2.  **错误被“吞掉”**：如果不设置 `.catch()`，Promise 内部抛出的错误不会反应到外部（不像同步代码会直接崩掉），这在调试时很痛苦。
+3.  **无法得知进度**：它只有“成功”和“失败”，中间进行到 50% 还是 80%，Promise 对象本身无法告诉你。
+
+## 取消 Promise
+
+### 1\. 现代正统方案：`AbortController` (推荐)
+
+这是原生 Web API 提供的专门用于取消异步操作的工具，完美适配 `fetch`。
+
+```javascript
+const controller = new AbortController() // 1. 创建控制器
+const signal = controller.signal // 2. 拿到信号灯
+
+fetch('/api/big-data', { signal }) // 3. 将信号传递给请求
+  .then((res) => res.json())
+  .catch((err) => {
+    if (err.name === 'AbortError') {
+      console.log('请求被手动取消了！')
+    } else {
+      console.log('其他错误')
+    }
+  })
+
+// 4. 当你反悔时，直接调用
+controller.abort()
+```
+
+### 2\. 经典面试方案：`Promise.race` 包装
+
+如果你用的不是 `fetch`，或者面试官问你“不使用新 API 如何实现”，可以用“**竞速模式**”来模拟取消。
+
+**逻辑**：让你的“业务 Promise”和一个“控制取消的 Promise”赛跑。
+
+​

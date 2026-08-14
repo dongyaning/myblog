@@ -1,0 +1,143 @@
+---
+title: '二分'
+date: '2025-03-02'
+updated: '2025-03-02'
+description: '二分比较重要哈，有几种不同的二分情况，要做一下总结。 第一个题是找到合适的插入位置，实际上就是找第一个大于（等于）给定目标值的位置。 java public int searchinsertint nums, int target { in'
+published: true
+category: '前端学习'
+tags: ['算法刷题']
+---
+
+二分比较重要哈，有几种不同的二分情况，要做一下总结。
+
+第一个题是找到合适的插入位置，实际上就是找**第一个大于（等于）给定目标值的位置**。
+
+```java
+public int searchInsert(int[] nums, int target) {
+    int l = 0, r = nums.length-1;
+    while (l <= r) {
+        int mid = (l+r) >> 1;
+        if (nums[mid] < target) l = mid+1;
+        else r = mid-1;
+    }
+    return l;
+}
+/*
+比如1 3 4 5 插入 2，第一次mid为3，l, r -> 0, 0
+第二次mid 为0, l, r -> 1, 0，第一次其实错过答案了，第二次又给拉回来了。循环条件的等号很重要。
+
+*/
+```
+
+这个题目的代码非常标准，可以作为模版了。
+
+第二个是搜索二维矩阵，矩阵从左到右从上到下是有序的，找target，返回boolean。那就是两次二分，先找行，再找列。第一步找行就是找第一列中第一个大于target的row-1。第二步就是在找到的行里面找target了。
+
+```java
+// 判断某个数在不在数组中，比较直观
+while (l <= r) {
+    int mid = (l+r) >> 1;
+    if (matrix[row][mid] < target) l = mid+1;
+    else if (matrix[row][mid] > target) r = mid-1;
+    else return true;
+}
+return false;
+```
+
+第三个是在排序数组中查找元素的第一个和最后一个位置，也属于一类题目。就是找 1 2 3 3 3 4，3的第一个和最后一个位置。
+
+```java
+public int[] searchRange(int[] nums, int target) {
+    // 先找左边的位置
+    int n = nums.length;
+    if (n == 0) return new int[] {-1, -1};
+
+    int l = 0, r = n-1;
+    while (l <= r) {
+        int mid = (l+r) >> 1;
+        if (nums[mid] < target) l = mid+1;
+        else r = mid-1;
+    }
+    int left = l;
+
+    l = 0;
+    r = n-1;
+    while (l <= r) {
+        int mid = (l+r) >> 1;
+        if (nums[mid] > target) r = mid-1;
+        else l = mid+1;
+    }
+    int right = r;
+
+    if (left < 0 || left >= n) return new int[] {-1, -1};
+    if (nums[left] != target) return new int[] {-1, -1};
+    return new int[] {left, right};
+}
+```
+
+由这个题目可以看出，二分的模版真就是这样的，注意细节即可，这个题目就是要注意等号在哪个if里。逻辑是这样的，比如要找到最左边的位置。等的时候也r=mid-1，一旦到了小于的位置，l = mid+1就给拉回来了。
+
+第四个是搜索排序旋转数组，这个题目的核心思想是：每次二分中点左右两边一定有一边是有序的，所以可以通过判断target在不在有序的一边，从而确定二分策略。
+
+第五个是搜索排序数组中的最小值，这个的实现不能使用模版了，所以还是要具体问题具体分析。
+
+```java
+public int findMin(int[] nums) {
+    int n = nums.length;
+    int l = 0, r = n-1;
+
+    while (l < r) {
+        int mid = (l+r) >> 1;
+        if (nums[mid] < nums[r]) r = mid;
+        else l = mid+1;
+    }
+    return nums[l];
+}
+```
+
+第六个是寻找两个有序数组的中位数，中位数在合并数组中的位置确定，问题转化为求第k小的数。求第k小的数，两个数组每次找k/2个数，注意数组越界，越界就是最后一个。为什么找k/2个数，因为这样不会忽略最小值。k/2个数前面有k/2-1个数，两个就是k-2个数，所以两个值里面的较少值一定不是答案，可以放心地删除。等到k=1时，就返回两个指针位置的min即可。在中途如果一个数组遍历到末尾了，可以直接返回另一个数组的当前指针+k-1位置的元素。
+
+# 二分模版（!important）
+
+我总结一下二分的模版，以后都用这种统一写法，当然这只是写法的一种，还有别的方法。
+
+- 统一使用 \[left, right) 左闭右开区间，初始 right = n
+- 统一 mid = (l + r) >> 1
+
+模版一：找大于等于 target 的第一个位置（下界，lower_bound）
+
+```java
+void lower_bound(int[] arr, int target) {
+    int n = arr.length;
+    int left = 0, right = n;
+
+    while (l < r) {
+        int mid = (l+r) >> 1;
+        if (arr[mid] < target) l = mid+1;
+        else r = mid;  // 左闭右开，真实区间不包含r，满足，但可能不是第一个，左缩
+    }
+
+    return l;
+}
+```
+
+模版二：找大于 target 的第一个位置（上界，upper_bound）
+
+```java
+void upper_bound(int[] arr, int target) {
+    int n = arr.length;
+    int left = 0, right = n;
+
+    while (l < r) {
+        int mid = (l+r) >> 1;
+        if (arr[mid] <= target) l = mid+1; // 这里要找上界，就是右缩
+        else r = mid;
+    }
+
+    return l;
+}
+```
+
+其它的情况由这两个模版的结果扩展即可。
+
+​

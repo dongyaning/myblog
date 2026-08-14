@@ -1,0 +1,314 @@
+---
+title: '博客项目'
+date: '2024-04-20'
+updated: '2024-04-20'
+description: 'ningblog 项目面试准备文档 整体介绍 回答框架：抛出结论-描述痛点-对比方案-最终决定与收益： “这个项目（ningblog）是一个基于 next.js app router 和 react 19 构建的高性能、全栈客制化博客系统。'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# NingBlog 项目面试准备文档
+
+# 整体介绍
+
+回答框架：抛出结论->描述痛点->对比方案->最终决定与收益：
+
+“这个项目（NingBlog）是一个基于 **Next.js App Router 和 React 19** 构建的高性能、全栈客制化博客系统。
+
+我做这个项目的初衷，是为了解决传统静态博客（如 Hexo/Hugo）在复杂交互和动态数据（比如浏览量统计、全栈评论系统）上的局限性。项目的核心痛点在于\*\*‘如何兼顾极致的加载性能（SEO friendly）与现代化的前端交互体验’\*\*。为此，我深度使用了 React Server Components (RSC) 来做服务端的 MDX 解析，并结合 Drizzle ORM 和 Postgres 实现了轻量级的全栈闭环。”
+
+“在这个项目中，我花了最多心思去打磨的是\*\*‘**文章阅读体验模块’（包含 MDX 解析、TOC 目录联动和关联推荐）**\*\*。这里面有几个关键的技术挑战和选型权衡：
+
+**第一点：MDX 渲染方案的 Trade-off** 面对 Markdown 渲染，我没有选择传统的在客户端引入 `marked.js` 的方案，而是选择了 `next-mdx-remote/rsc`。 _我的思考是_：博客的核心是内容，如果把解析器打包进客户端，会严重拖慢首屏体积。利用 Next.js 的 RSC 特性，我在 `lib/mdx.ts` 中将所有的 Markdown 解析、AST 转换（结合 `remark-gfm`）全部放在了 Server 端完成。这不仅做到了**客户端零解析成本**，还能完美支持在 Markdown 中无缝嵌入 React 交互组件。
+
+**第二点：高性能 TOC（目录）高亮联动的实现** 在实现右侧目录树随页面滚动自动高亮当前标题时，我遇到了性能瓶颈。 传统的做法是监听 `window.onscroll` 事件，通过计算所有标题的 `getBoundingClientRect` 来判断位置。但由于涉及到频繁的 DOM 重排（Reflow），在长文章下页面会掉帧。 _我的解决方案_：我全面弃用了 Scroll 监听，改用 `IntersectionObserver`。在 `table-of-contents.tsx` 中，我为观察器配置了一个非常巧妙的 `rootMargin: '-80px 0px -80% 0px'`。这个参数的设计是核心——它相当于在屏幕顶部画了一条隐形的基准线，只有当标题滚动穿过这特定的 20% 区域时才会触发状态更新，极大地降低了浏览器的计算开销，实现了如丝般顺滑的联动。
+
+**第三点：首屏动画的 FOUC（样式闪烁）问题** 为了配合博客的视觉效果，我封装了一个通用的 `useIntersectionObserver` Hook。在开发时我发现一个坑：首屏元素在 JS 加载完成、Observer 注册生效前，会有短暂的不显示或动画闪烁。 _我的处理_：在这个 Hook 的内部，我加入了 `getBoundingClientRect` 的同步视口检测。在组件挂载的瞬间，立即计算元素是否已经在视口内，如果是，则直接 Bypass 掉异步的 Observer，这一步不仅解决了闪烁问题，还完善了首屏 SSR 后的直接渲染体验。
+
+**第四点：基于权重的相关文章推荐算法** 很多博客的相关推荐是随机的。为了提升阅读留存，我在 `lib/mdx.ts` 中手写了一个基于权重的打分算法：同分类直接加 3 分，同标签每个加 1 分。这个逻辑完全在服务端构建时（Build time）跑完，既保证了推荐的精准度，又完全不占用客户端运行时的性能。”
+
+## 一、项目一句话介绍
+
+> NingBlog 是一个基于 **Next.js 16 + TypeScript + Tailwind CSS 4** 的个人技术博客平台，采用 MDX 作为内容源、Drizzle ORM + Vercel Postgres 做数据分析，具备完整的 SEO 体系、Admin 后台和动画系统。
+
+```latex
+浏览器
+  -> 请求 Next 应用
+    -> Next 匹配页面或 API
+      -> 如果是页面：
+         - 服务端组件执行
+         - 读取 MDX / 查数据库
+         - 生成 HTML + RSC payload
+         - 返回给浏览器
+      -> 如果是 API：
+         - 执行业务逻辑
+         - 调用 Drizzle / 读写文件
+         - 返回 JSON
+浏览器收到页面后
+  -> 展示 HTML
+  -> 下载客户端组件 JS
+  -> hydration
+  -> 客户端组件发起交互请求
+  -> 再次请求 Next API
+```
+
+---
+
+## 二、核心技术栈
+
+| 类别     | 技术                                                 | 版本/说明                      |
+| -------- | ---------------------------------------------------- | ------------------------------ |
+| 框架     | Next.js (App Router)                                 | 16.1.1                         |
+| UI 库    | React                                                | 19.2.3                         |
+| 语言     | TypeScript                                           | 5.x                            |
+| 样式     | Tailwind CSS                                         | 4.x                            |
+| 组件库   | shadcn/ui (Radix UI)                                 | CVA + clsx + tailwind-merge    |
+| 内容     | MDX (`next-mdx-remote`)                              | 服务端编译                     |
+| 数据库   | Vercel Postgres                                      | Drizzle ORM                    |
+| 认证     | JWT (`jose`)                                         | HS256 签名                     |
+| 代码高亮 | Shiki                                                | 3.x                            |
+| 动画     | 自研 Intersection Observer 动画系统                  | FadeIn / SlideIn / Parallax 等 |
+| 评论     | Giscus (GitHub Discussions)                          |                                |
+| 图表     | Recharts                                             | 后台分析面板                   |
+| 包管理   | pnpm                                                 |                                |
+| 代码规范 | Husky + lint-staged + commitlint + Prettier + ESLint |                                |
+
+---
+
+## 三、项目架构与目录结构
+
+```plain
+myblog/
+├── app/                    # Next.js App Router 页面
+│   ├── layout.tsx          # 根布局（ThemeProvider + Header/Footer）
+│   ├── page.tsx            # 首页（最新文章 + 侧边栏热门文章）
+│   ├── blog/               # 博客列表 & 详情
+│   ├── categories/         # 分类页
+│   ├── tags/               # 标签页
+│   ├── series/             # 系列文章页
+│   ├── admin/              # 管理后台（受 Middleware 保护）
+│   ├── feed.xml/route.ts   # RSS 订阅
+│   ├── sitemap.ts          # 动态 Sitemap
+│   └── robots.ts           # robots.txt
+├── components/
+│   ├── blog/               # 博客相关（PostCard, CodeBlock, TOC, Comments...）
+│   ├── admin/              # 后台（MDX编辑器, 分析图表, 认证表单）
+│   ├── analytics/          # 数据统计展示组件
+│   ├── animation/          # 动画系统（FadeIn, SlideIn, Parallax, StaggerContainer）
+│   ├── layout/             # Header, Footer, MobileNav
+│   ├── loading/            # Skeleton 骨架屏
+│   ├── search/             # 搜索对话框
+│   ├── mdx-components.tsx  # MDX 自定义组件映射
+│   └── ui/                 # shadcn/ui 基础组件
+├── content/posts/          # MDX 文章源文件
+├── lib/
+│   ├── mdx.ts              # MDX 读取/编译/查询逻辑
+│   ├── auth.ts             # JWT 认证（jose）
+│   ├── seo.ts              # SEO 配置 & JSON-LD 生成
+│   ├── db/                 # Drizzle ORM schema + queries
+│   ├── toc.ts              # 目录提取
+│   ├── reading-time.ts     # 阅读时间计算
+│   └── utils.ts            # cn() 等工具函数
+├── hooks/                  # 自定义 Hooks
+│   ├── use-intersection-observer.ts
+│   └── use-scroll-progress.ts
+├── middleware.ts            # Admin 路由鉴权守卫
+└── drizzle/                # 数据库迁移文件
+```
+
+---
+
+## 四、面试高频问题 & 标准回答
+
+### 1\. 为什么选择 Next.js 16 App Router？
+
+**回答**：
+
+- App Router 基于 React Server Components（RSC），默认组件在服务端渲染，减少客户端 JS 体积，对博客这类内容型站点非常友好。
+- 支持 **流式渲染（Streaming）**，配合 `loading.tsx` 和 `Suspense` 实现渐进式加载体验。
+- 内置 `metadata` API，可以在每个页面/布局中声明式地管理 SEO 元数据，比 `next/head` 更类型安全。
+- 内置 `sitemap.ts`、`robots.ts`、Route Handlers，不需要额外配置就能生成 SEO 所需文件。
+- 布局嵌套和并行路由让页面结构更清晰。
+
+### 2\. MDX 内容是怎么处理的？
+
+**回答**：  
+采用 **"Docs as Code"** 策略，文章以 `.mdx` 文件存储在 `content/posts/` 目录下。
+
+处理流程：
+
+1.  使用 `next-mdx-remote/rsc` 在**服务端**编译 MDX（不发送编译器到客户端）。
+2.  通过 `compileMDX&lt;Frontmatter>()` 解析 frontmatter（title、date、tags、category、series 等），同时传入 `remarkGfm` 插件支持 GFM 语法。
+3.  `getAllPosts()` 读取整个目录、过滤 `published: true` 的文章、按日期排序。
+4.  支持按分类、标签、系列查询，以及基于标签/分类相似度的**相关文章推荐**算法（加权评分：同分类 +3 分，每个相同标签 +1 分）。
+
+**为什么不用 CMS？**
+
+- MDX 可以在 Markdown 中嵌入 React 组件（如交互式代码演示），更灵活。
+- 内容和代码一起版本管理（Git），无需额外后端。
+
+### 3\. SEO 做了哪些优化？
+
+**回答**：完整的 SEO 体系包括 5 个层面：
+
+| 层面           | 实现                                                                                                 |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| **Metadata**   | 使用 Next.js `metadata` API，每个页面声明 `title`、`description`、`keywords`、`openGraph`、`twitter` |
+| **结构化数据** | `generateArticleStructuredData()` 生成 JSON-LD `BlogPosting` Schema，帮助搜索引擎理解文章结构        |
+| **Sitemap**    | `app/sitemap.ts` 动态生成，包含所有文章、分类、标签 URL，并标注 `changeFrequency` 和 `priority`      |
+| **robots.txt** | `app/robots.ts` 允许所有爬虫并指向 sitemap                                                           |
+| **RSS Feed**   | `app/feed.xml/route.ts` 生成标准 RSS 2.0 XML，支持 Atom 协议                                         |
+
+**亮点**：所有 SEO 数据都是**动态生成**的——当新增文章时，sitemap 和 RSS 自动包含，无需手动维护。
+
+### 4\. 认证和鉴权是怎么做的？
+
+**回答**：
+
+- 认证方案：**JWT + HttpOnly Cookie**，使用 `jose` 库（纯 JS 实现，兼容 Edge Runtime）。
+- 登录流程：Admin 输入密码 → `verifyPassword()` 校验 → `createToken()` 签发 HS256 JWT（7 天有效期）→ 写入 HttpOnly Cookie。
+- 鉴权守卫：通过 **Next.js Middleware** 拦截 `/admin/dashboard` 和 `/api/admin/analytics` 路径，读取 Cookie 中的 token 并用 `verifyToken()` 验证。
+- 页面请求未认证 → 重定向到登录页；API 请求未认证 → 返回 401。
+- Cookie 设置了 `httpOnly`、`secure`（生产环境）、`sameSite: lax`，防止 XSS 和 CSRF。
+
+**为什么用 Middleware 而非路由级校验？**
+
+- Middleware 在 Edge Runtime 执行，速度快，在请求到达页面之前就完成校验，减少不必要的渲染开销。
+
+### 5\. 数据库设计和数据分析功能？
+
+**回答**：
+
+使用 **Vercel Postgres + Drizzle ORM**，设计了两张表：
+
+- `page_views`：记录每次页面访问（slug、visitor_id、ip_hash、user_agent、referer、timestamp、read_time）
+- `post_stats`：文章统计汇总（view_count、unique_visitors、avg_read_time、last_viewed）
+
+**为什么选 Drizzle ORM？**
+
+- 类型安全：Schema 定义直接推导出 TypeScript 类型。
+- 轻量：不像 Prisma 需要生成客户端。
+- 支持 Edge Runtime。
+- Schema 即迁移源，用 `drizzle-kit` 生成 SQL 迁移。
+
+### 6\. 动画系统是怎么实现的？
+
+**回答**：
+
+自研了一套基于 **Intersection Observer** 的声明式动画组件系统：
+
+- `FadeIn`：元素进入视口时淡入，支持 `direction`（up/down/left/right）、`delay`、`duration` 参数。
+- `SlideIn`：滑入动画。
+- `ScaleIn`：缩放动画。
+- `StaggerContainer`：子元素交错动画容器（设置 `staggerDelay` 控制间隔）。
+- `Parallax`：视差滚动效果。
+- `ScrollProgress`：阅读进度条。
+
+核心原理：
+
+1.  自定义 Hook `useIntersectionObserver` 监听元素是否进入视口。
+2.  通过 CSS `transition` + 动态 `style` 实现动画（opacity、transform）。
+3.  `triggerOnce` 控制是否只触发一次。
+
+**为什么不用 Framer Motion？**
+
+- 博客场景动画简单，用 Intersection Observer + CSS Transition 就够了，避免引入额外 JS 体积（Framer Motion ~30KB gzipped）。
+- 自研方案更轻量、可控。
+
+> 注：项目中实际也安装了 `motion`（Framer Motion 的轻量版）作为备选，但核心动画使用的是自研方案。
+
+### 7\. 代码高亮是怎么做的？
+
+**回答**：
+
+使用 **Shiki** 实现语法高亮：
+
+- Shiki 在**构建时/服务端**将代码转为带样式的 HTML，不需要客户端 JS。
+- 支持多种主题和语言。
+- 自定义 `CodeBlock` 组件封装了**一键复制**功能（`navigator.clipboard` API）。
+- 复制按钮使用 `group-hover:opacity-100` 实现 hover 显示效果。
+
+### 8\. 你是怎么组织组件的？
+
+**回答**：
+
+按**功能域**划分，而非按类型划分：
+
+```plain
+components/
+├── blog/       # 博客领域（PostCard, TOC, Comments, CodeBlock...）
+├── admin/      # 后台领域（编辑器, 图表, 认证表单）
+├── analytics/  # 统计领域
+├── animation/  # 动画系统
+├── layout/     # 布局（Header, Footer, MobileNav）
+├── loading/    # 骨架屏
+├── search/     # 搜索
+└── ui/         # shadcn/ui 基础组件（Button, Card, Dialog...）
+```
+
+- **Server Component 优先**：只有需要交互的组件才标记 `'use client'`（如 CodeBlock 的复制功能、动画组件、搜索对话框）。
+- UI 基础组件使用 shadcn/ui（基于 Radix UI），通过 `cn()` 工具函数（clsx + tailwind-merge）处理条件样式。
+
+### 9\. 项目有哪些性能优化？
+
+**回答**：
+
+| 优化点        | 具体做法                                                      |
+| ------------- | ------------------------------------------------------------- |
+| **RSC**       | 默认服务端组件，减少客户端 JS bundle                          |
+| **Turbopack** | 开发模式使用 `next dev --turbo`，加速 HMR                     |
+| **流式渲染**  | 每个页面都有 `loading.tsx` 骨架屏，配合 Suspense 实现流式加载 |
+| **代码高亮**  | Shiki 在服务端完成，零客户端 JS                               |
+| **动画**      | 自研方案替代 Framer Motion，减少依赖体积                      |
+| **图片**      | 可利用 Next.js Image 组件自动优化                             |
+| **缓存**      | RSS Feed 设置 `Cache-Control: public, max-age=3600`           |
+| **MDX 编译**  | 使用 `next-mdx-remote/rsc` 在服务端编译，不发送编译器到客户端 |
+
+### 10\. 工程化方面做了什么？
+
+**回答**：
+
+- **Git Hooks**：Husky 管理 Git 钩子。
+- **pre-commit**：lint-staged 只对暂存文件运行 Prettier 格式化和 ESLint 检查。
+- **commit-msg**：commitlint 强制 Conventional Commits 规范（如 `feat:`, `fix:`, `docs:`）。
+- **代码格式化**：Prettier + `prettier-plugin-tailwindcss`（自动排序 Tailwind 类名）+ `@trivago/prettier-plugin-sort-imports`（自动排序 import）。
+- **TypeScript 严格模式**：所有数据流严格类型定义（如 `Frontmatter` 接口）。
+- **数据库迁移**：Drizzle Kit 管理 Schema 迁移。
+
+---
+
+## 五、可能的追问 & 简答
+
+**Q: Next.js 16 和 15 有什么区别？**  
+A: 16 正式稳定了 App Router，改进了 Turbopack 性能，RSC 和 Server Actions 更加成熟。
+
+**Q: 为什么用** `jose` **而不用** `jsonwebtoken`**？**  
+A: `jose` 是纯 JS 实现，不依赖 Node.js 原生 `crypto`，兼容 Edge Runtime（Middleware 跑在 Edge 上）。`jsonwebtoken` 依赖 Node.js API，无法在 Edge 运行。
+
+**Q: MDX 和普通 Markdown 有什么区别？**  
+A: MDX 可以在 Markdown 中嵌入 React 组件。比如文章里可以直接放一个 `&lt;Counter />` 交互组件，或者自定义代码块样式。
+
+**Q: shadcn/ui 和传统组件库（Ant Design、Material UI）有什么不同？**  
+A: shadcn/ui 不是 npm 包，而是直接将组件源码复制到项目中。好处是：完全可定制、不增加依赖体积、基于 Radix UI 原语保证可访问性（A11y）。
+
+**Q: 为什么选 Tailwind CSS 而不是 CSS Modules？**  
+A: Tailwind 的原子化类名在服务端渲染时不会有 CSS-in-JS 的运行时开销，且 Tailwind v4 的新引擎更快。配合 `cn()` 工具函数可以优雅处理条件样式。
+
+**Q: 搜索功能是怎么实现的？**  
+A: 使用 `SearchDialog` 组件（基于 Radix Dialog），在客户端对文章元数据进行模糊匹配搜索，无需后端搜索引擎。
+
+**Q: Giscus 评论系统的优势？**  
+A: 基于 GitHub Discussions，无需自建后端和数据库，用户用 GitHub 账号登录即可评论，适合技术博客受众。
+
+---
+
+## 六、项目亮点总结（面试收尾用）
+
+1.  **全栈能力**：前端渲染 + 数据库设计 + JWT 认证 + Middleware 鉴权。
+2.  **SEO 工程化**：Metadata API + JSON-LD + Sitemap + RSS，形成完整闭环。
+3.  **性能意识**：RSC 优先、服务端代码高亮、自研轻量动画替代重型库。
+4.  **代码质量**：TypeScript 严格类型 + Husky/lint-staged/commitlint 全链路规范。
+5.  **架构设计**：按功能域组织组件、关注点分离、Server/Client Component 合理划分。
+
+​

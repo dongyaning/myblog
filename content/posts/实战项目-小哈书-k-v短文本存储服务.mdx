@@ -1,0 +1,110 @@
+---
+title: 'K-V短文本存储服务'
+date: '2023-02-25'
+updated: '2023-02-25'
+description: 'image.pngassets/k-v短文本存储服务-1.png 选了cassandra. 也是docker 安装 cassandra query language cql 是 apache cassandra 数据库的一种专用查询语言，它'
+published: true
+category: '后端学习'
+tags: ['实战项目', '小哈书']
+---
+
+![image.png](/images/posts/实战项目-小哈书-k-v短文本存储服务/k-v短文本存储服务-1.png)
+
+选了Cassandra.
+
+也是docker 安装
+
+Cassandra Query Language (CQL) 是 Apache Cassandra 数据库的一种专用查询语言，它简化了与 Cassandra 的交互，提供了一种类似 SQL 的语法来管理数据。
+
+**Cassandra 中几个基本概念：**
+
+- **节点（Node）**：Cassandra 集群中的每个服务器称为一个节点。每个节点都存储数据，并且相互之间没有主从关系，所有节点都是对等的。
+- **集群（Cluster）**：由多个节点组成的分布式系统称为集群。集群中的节点共同工作，处理读写请求并存储数据。
+- **数据中心（Data Center）**：集群中的节点可以分布在多个数据中心，每个数据中心包含若干个节点。数据中心的划分有助于实现跨地域的高可用性。
+- **键空间（Keyspace）**：键空间是一个逻辑容器，用于管理多个表，可以理解为 MySQL 中的库。另外，键空间定义了数据复制的策略。
+- **表（Table）**：表是数据存储的基本单位，由行和列组成。每张表都有一个唯一的名称和定义。
+- **主键（Primary Key）**：每行数据都有一个唯一的主键。主键由分区键和可选的列组成，用于唯一标识数据行。
+- **分区键（Partition Key）**：Cassandra 使用分区键的哈希值将数据分布到不同的节点上，从而实现负载均衡和数据的水平扩展。分区键可以是单个列或多列的组合（复合分区键）。
+
+整体的操作和Mysql非常相近.
+
+​
+
+Spring 提供了对cassandra的访问starter
+
+```xml
+<!-- Cassandra 存储 -->
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-data-cassandra</artifactId>
+</dependency>
+```
+
+然后就是写配置类
+
+```java
+@Configuration
+public class CassandraConfig extends AbstractCassandraConfiguration {
+
+    @Value("${spring.cassandra.keyspace-name}")
+    private String keySpace;
+
+    @Value("${spring.cassandra.contact-points}")
+    private String contactPoints;
+
+    @Value("${spring.cassandra.port}")
+    private int port;
+
+    /*
+     * Provide a keyspace name to the configuration.
+     */
+    @Override
+    public String getKeyspaceName() {
+        return keySpace;
+    }
+
+    @Override
+    public String getContactPoints() {
+        return contactPoints;
+    }
+
+    @Override
+    public int getPort() {
+        return port;
+    }
+}
+```
+
+然后写实体类，写一个接口实现CassdraRepository接口。
+
+```java
+public interface NoteContentRepository extends CassandraRepository<NoteContentDO, UUID> {
+
+}
+```
+
+spring data会自动扫描实现了CassandraRepository的接口，并自动创建实现类放入Spring容器。直接注入即可。
+
+```java
+@SpringBootTest
+@Slf4j
+class CassandraTests {
+
+    @Resource
+    private NoteContentRepository noteContentRepository;
+
+    /**
+     * 测试插入数据
+     */
+    @Test
+    void testInsert() {
+        NoteContentDO nodeContent = NoteContentDO.builder()
+                .id(UUID.randomUUID())
+                .content("代码测试笔记内容插入")
+                .build();
+
+        noteContentRepository.save(nodeContent);
+    }
+
+}
+```

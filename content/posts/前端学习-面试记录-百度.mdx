@@ -1,0 +1,65 @@
+---
+title: '百度'
+date: '2026-04-11'
+updated: '2026-04-11'
+description: '前端实习一面 \-- 2026.2.9 15:00 - 16:00 结果- 挂 自我介绍 react 更新流程 react 合成事件，react 怎么捕捉注册的 react 优先级 指定优先级的 hook 代码输出题： javascript'
+published: true
+category: '前端学习'
+tags: ['面试记录']
+---
+
+前端实习一面
+
+\-- 2026.2.9 15:00 - 16:00 结果- 挂
+
+自我介绍
+
+React 更新流程
+
+React 合成事件，React 怎么捕捉注册的
+
+React 优先级
+
+指定优先级的 hook
+
+代码输出题：
+
+```javascript
+const name = 'global'
+
+const obj = {
+  name: 'inner'
+  fn1: function() {
+    clg(this.name)
+  }
+  fn2: () => {
+    clg(this.name)
+  }
+  fn3: function() {
+    return function() {
+      clg(this.name)
+    }
+  }
+  fn4: function() {
+    return () => {
+      clg(this.name)
+    }
+  }
+}
+```
+
+箭头函数和普通函数的区别
+
+场景题，四个角拖动+旋转按钮，怎么旋转后还能正常缩放。
+
+React 闭包，及解决方案。
+
+用什么工程化工具
+
+写过插件吗
+
+手写题：
+
+手写深拷贝
+
+数组最大层数

@@ -1,0 +1,1126 @@
+---
+title: '前端问题总结(全部汇总,拿这个复习)'
+date: '2025-01-02'
+updated: '2025-01-02'
+description: '大文件上传和断点续传 传统的单次 post 请求上传大文件，一旦网络波动或连接超时，就要从 0% 重新开始，用户体验极差。 大文件上传的核心是：前端对文件分片（分片内根据内容计算哈希）+ 并发上传 + 后端对切片合并。 切片 前端利用 bl'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# 大文件上传和断点续传
+
+传统的单次 `POST` 请求上传大文件，一旦网络波动或连接超时，就要从 0% 重新开始，用户体验极差。
+
+大文件上传的核心是：**前端对文件分片（分片内根据内容计算哈希）+ 并发上传 + 后端对切片合并**。
+
+## 切片
+
+前端利用 Blob.slice 方法将大文件切割成多个小的 Blob，如每个 5MB。
+
+```javascript
+// 1. 文件切片
+const createChunkList = (file, size = SIZE) => {
+  const list = []
+  let cur = 0
+  while (cur < file.size) {
+    list.push({ file: file.slice(cur, cur + size) })
+    cur += size
+  }
+  return list
+}
+```
+
+## 切片 Hash 计算
+
+利用 SparkMD5 等库计算文件的 MD5，作为文件的身份证。
+
+这里补充一下，MD5 的计算结果是固定长度的一个 128 位的二进制数值。虽然输出是一样的，但是文件越大，计算过程耗时就越长。
+
+为了避免过大的计算复杂度，卡死主线程，可以把计算放进 web worker，减小分片大小或对分片内进行采样 Hash。
+
+```javascript
+const calculateHash = (fileChunkList) => {
+  return new Promise((resolve) => {
+    const worker = new Worker('/hash-worker.js') // 实际开发需单独写 worker 文件
+    worker.postMessage({ fileChunkList })
+    worker.onmessage = (e) => {
+      const { hash } = e.data
+      if (hash) resolve(hash)
+    }
+  })
+}
+```
+
+## 断点续传
+
+这个实际上就相当于业务开发了，有了身份标识之后，每次上传，都向后端查询，现在已经上传的切片列表和是否已经传完了（秒传），然后前端过滤掉已经传过的文件即可。
+
+## HTTP 传文件的方式
+
+现在一般是用 FormData 的方式，前端把 new FormData 放进消息 body 之后，浏览器会自动设置消息头为：`Content-Type: multipart/form-data;`
+
+在早期的 Web 中，我们只能通过 JSON 或 URL 编码（`application/x-www-form-urlencoded`）发送数据。
+
+- **JSON**：原生不支持二进制。如果要传文件，必须转成 Base64 字符串，这会导致文件体积增加约 **33%**，且编解码会消耗大量 CPU。
+- **FormData**：允许直接将 **原始二进制数据** 放入 HTTP 报文，不经过转换，效率最高。
+
+因为 FormData 里面既有文本又有文件，为了区分，FormData 中会插入一些 bondary。
+
+```javascript
+const fd = new FormData()
+
+// 1. 添加普通文本
+fd.append('username', '张三')
+
+// 2. 添加文件 (Blob 或 File 对象)
+fd.append('file', fileInput.files[0], 'user_avatar.png')
+
+// 3. 检查、删除、获取
+fd.has('username') // true
+fd.delete('username')
+fd.get('file') // 获取对应的 File 对象
+
+// 4. 发送 (以 axios 为例)
+// 注意：千万不要手动去设置 Content-Type！
+// 让浏览器自动识别并填充 boundary，手动设置反而会漏掉 boundary 导致后端报错。
+axios.post('/api/upload', fd)
+```
+
+注意不要手动去设置 content-type，而是让浏览器自己去设置，浏览器会同步加上 bondary 信息。
+
+# 图片懒加载 + 无限滚动加载
+
+## 图片懒加载
+
+**核心思路**
+
+图片的 `src` 属性如果不为空，浏览器会自动发起请求。懒加载的思路就是：
+
+- 初始化时，不把真实地址放在 `src`，而是放在一个自定义属性（如 `data-src`）中。
+- 给图片一个占位图（或空白）。
+- 当图片\*\*进入视口（Viewport）\*\*时，将 `data-src` 的值赋给 `src`，触发请求。
+
+**实现方案**
+
+1\. 原生：
+
+```javascript
+<img src="real.jpg" loading="lazy" alt="...">
+```
+
+这种方式最简单，浏览器自动处理。但是**无法精确控制触发距离**，且老浏览器恐不兼容，如果对于触发距离的要求不高，用这个方式是非常方便的。
+
+可以通过 js 去判断是用原生还是去降级
+
+```javascript
+if ('loading' in HTMLImageElement.prototype) {
+  // 浏览器支持原生懒加载
+} else {
+  // 动态引入你的旧版兼容脚本
+}
+```
+
+2.IntersectionObserver（主流方案）
+
+性能最好、最优雅的方案。
+
+这个 api 的好处是不是同步执行的，而是类似与 requestidleframe 是在浏览器空闲的执行的。
+
+```javascript
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      // 元素进入视口
+      const img = entry.target
+      img.src = img.dataset.src // 替换真实地址
+      observer.unobserve(img) // 停止监听该图片
+    }
+  })
+}, config)
+// 第二个参数可以控制阈值/距离视口多远触发
+// 监听所有带 data-src 的图片
+document.querySelectorAll('img[data-src]').forEach((img) => observer.observe(img))
+```
+
+3.如果要兼容连IntersectionObserver 都不支持的浏览器，那就需要采用**监听滚动事件+getBoundingClientRect()方法：**
+
+这个方法会返回元素相对于当前视口的位置（top， left， right， bottom），以及元素的宽高（width， height）。
+
+## 无限滚动加载
+
+当用户滚动接近页面底部时，自动发起下一次的分页请求，并将数据追加到列表末尾。
+
+方案：
+
+1.监听 scroll 事件：`scrollTop + clientHeight >= offsetHeight - threshold`
+
+要配合节流使用。
+
+2.**IntersectionObserver（推荐）** 在列表末尾放一个透明的 **“哨兵”元素（Sentinel）**。
+
+```javascript
+const sentinel = document.getElementById('loading-sentinel')
+const observer = new IntersectionObserver((entries) => {
+  if (entries[0].isIntersecting && !isLoading) {
+    loadMoreData() // 触发异步请求
+  }
+})
+observer.observe(sentinel)
+```
+
+# 拦截器（网络请求）
+
+简单来说，拦截器就是**在请求发出之前**或**响应返回给业务代码之前**，由你预设的一段“过滤逻辑”。它就像是一个**全职的“网管”或“质检员”**，帮你统一处理那些繁琐且重复的工作。
+
+拦截器分为两类：请求拦截器 和 响应拦截器
+
+### 1\. 请求拦截器 (Request Interceptor)
+
+**时机**：在浏览器发出 HTTP 请求的一瞬间之前触发。
+
+- **核心用途**：
+
+- **统一注入 Token**：自动给所有请求加上 `Authorization` 头。
+- **显示 Loading**：请求发起时开启全局 Loading 动画。
+- **参数预处理**：比如对所有 POST 请求的参数进行加密。
+
+### 2\. 响应拦截器 (Response Interceptor)
+
+**时机**：在后端数据回到你的 `axios.get().then()` 之前触发。
+
+- **核心用途**：
+
+- **数据脱壳**：直接返回 `res.data`，业务代码直接拿结果。
+- **统一错误处理**：根据状态码（401, 404, 500）统一弹出 Toast 提示。
+- **Token 过期处理**：如果后端返回 401，拦截器可以直接跳转到登录页，或者尝试刷新 Token。
+
+```javascript
+// Axios 示例
+axios.interceptors.request.use(
+  (config) => {
+    // 在发送请求之前做些什么
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    console.log(`正在请求: ${config.url}`)
+    return config // 必须返回 config，否则请求发不出去
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
+
+axios.interceptors.response.use(
+  (response) => {
+    // 这里的 response 是 Axios 包装过的对象
+    // 我们通常在这里直接返回核心数据
+    return response.data
+  },
+  (error) => {
+    // 统一处理 HTTP 状态码错误
+    if (error.response.status === 401) {
+      alert('登录过期，请重新登录')
+      location.href = '/login'
+    }
+    return Promise.reject(error)
+  }
+)
+```
+
+# 文字溢出隐藏
+
+## 单行溢出
+
+禁止换行 + 固定宽度 + 溢出隐藏
+
+```css
+.single-line {
+  width: 200px; /* 必须设置宽度 */
+  white-space: nowrap; /* 1. 强制文字在一行内显示，不换行 */
+  overflow: hidden; /* 2. 隐藏超出容器宽度的内容 */
+  text-overflow: ellipsis; /* 3. 超出部分显示省略号 (...) */
+}
+```
+
+## 多行溢出
+
+WebKit 方案，虽然带有 WebKit，但是现在主流的浏览器都可以支持。
+
+```css
+.multi-line { // 这个元素要能设置宽度哈，不能是真正的行内元素
+    width: 200px;
+    display: -webkit-box;           /* 1. 必须结合弹性盒子模型 */
+    -webkit-box-orient: vertical;   /* 2. 设置伸缩盒子的子元素排列方式为垂直 */
+    -webkit-line-clamp: 3;          /* 3. 关键：限制显示的行数 */
+    overflow: hidden;               /* 4. 隐藏超出范围的内容 */
+}
+```
+
+兼容性方案：
+
+```css
+.old-school {
+  position: relative;
+  line-height: 1.5em;
+  max-height: 4.5em; /* 1.5 * 3行 = 4.5em */
+  overflow: hidden;
+}
+/* 在末尾手动加一个省略号遮盖 */
+.old-school::after {
+  content: '...';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  background: white; /* 需要和背景颜色一致 */
+}
+```
+
+_这种方法的缺点是：即便文字没溢出，省略号也可能在那。_
+
+# 跨域
+
+有一点要明确：**跨域策略保护的是后端服务不受到恶意攻击，不把数据泄露给非目标网站。**
+
+当浏览器发送请求地址和目的地址在协议、IP、端口号上有不一致时，就会给这个请求打上跨域标记。服务端返回之后，浏览器去检查`Access-Control-Allow-Origin`字段的内容，如果源 IP 不在这个名单里面，浏览器就会拦截这个相应。
+
+# git rebase 和 git merge
+
+首先，比较直观地就是提交记录的区别。
+
+而究其根源，可以发现，这两个操作还是很不一样的，我用一个简单的例子来说明这个问题。
+
+比如，本地分支一开始是基于主分支的 A->B 写的，后面在此基础上写了 D->E，也就是 ABDE。
+
+而在这个过程中，有人向主分支 commit 了一个 C，主分支变成了 ABC。
+
+**如果执行 merge 操作**，实际上会保留两条完整的分支路径，也就是说会保留 ABC 和 ABDE 这两个分支，只新建一个合并后的 merge commit，我们可以方便地追溯或回溯到 merge 前的两个分支。
+
+**而如果是 rebase 操作**，如在当前分支 rebase 主分支，那么就会先暂存当前分支新的提交，即 DE，将当前分支的起点变更为 C，再将 DE 放在 C 后面（会改变 commit id）。也就是说，rebase 之后，记录就变成一条线了，**你再想回到 ABDE 这种状态，是做不到的！**
+
+# 类数组
+
+特点：
+
+- 拥有 length 属性
+- 拥有索引属性，属性名是数字
+
+与“真数组”的区别：
+
+- 原型链不同，通常为 Object.prototype
+- 没有数组的那些方法
+
+转换为真数组：
+
+| **方法**       | **ES版本** | **优点**                             | **缺点**                        |
+| -------------- | ---------- | ------------------------------------ | ------------------------------- |
+| `Array.from()` | ES6        | 功能最全，支持第二个参数（map 功能） | 需要 Polyfill 兼容老旧浏览器    |
+| `[...]`        | ES6        | 语法最简洁                           | 仅支持具备 Iterator 接口的对象  |
+| `slice.call()` | ES5        | **兼容性无敌**                       | 写法略显啰嗦，性能略逊于 `from` |
+
+# this 绑定问题
+
+记住一个原则：
+
+- 普通函数的 this 是运行时确定的
+
+- 直接调用是 window
+- obj.调用是 obj
+- 显式绑定是第一个参数
+
+- 箭头函数的 this 是定义时就确定死的，以后不会变，显式绑定也不会变。
+
+- **箭头函数的 this = 定义时，上层执行上下文的 this**。
+- 所谓执行上下文，只有全局和函数执行上下文两种！
+
+```javascript
+var name = 'window'
+
+function Person(name) {
+  this.name = name
+
+  // 普通函数
+  this.foo1 = function () {
+    console.log(this.name)
+  }
+
+  // 箭头函数
+  this.foo2 = () => {
+    console.log(this.name)
+  }
+
+  // 返回普通函数的普通函数
+  this.foo3 = function () {
+    return function () {
+      console.log(this.name)
+    }
+  }
+
+  // 返回箭头函数的普通函数
+  this.foo4 = function () {
+    return () => {
+      console.log(this.name)
+    }
+  }
+}
+
+var person1 = new Person('person1')
+var person2 = new Person('person2')
+
+// 第一组：普通函数的调用与显式绑定
+person1.foo1()
+person1.foo1.call(person2)
+
+// 第二组：箭头函数的调用与显式绑定陷阱
+person1.foo2()
+person1.foo2.call(person2)
+
+// 第三组：高阶函数 - 返回普通函数
+person1.foo3()()
+person1.foo3.call(person2)()
+person1.foo3().call(person2)
+
+// 第四组：高阶函数 - 返回箭头函数
+person1.foo4()()
+person1.foo4.call(person2)()
+person1.foo4().call(person2)
+
+// g 1: p1, p2
+// g 2: p1, p1
+// g 3: w, w, p2
+// g4: p1, p2, p1
+```
+
+```javascript
+var a = 1; // 全局变量，挂载在 window 上
+
+function fn() {
+  console.log(this.a);
+}
+
+var obj1 = {
+  a: 2,
+  foo: fn
+};
+
+var obj2 = {
+  a: 3,
+  method: function(cb) {
+    // 1. 独立回调
+    cb();
+
+    // 2. 伪数组对象调用
+    arguments[0]();
+
+    // 3. 立即执行函数 (IIFE)
+    (function() {
+      console.log(this.a);
+    })();
+
+    // 4. 定时器 + 箭头函数
+    setTimeout(() => {
+      console.log(this.a);
+    }, 0);
+  }
+};
+
+console.log('--- 第一组：操作符陷阱 ---');
+obj1.foo();               // 输出 1: ?
+(obj1.foo)();             // 输出 2: ?
+(obj1.foo = obj1.foo)();  // 输出 3: ?
+
+console.log('--- 第二组：上下文交织 ---');
+obj2.method(fn, 123);     // 注意：调用 method 时传了两个参数
+// 这里会依次输出 4, 5, 6, 7
+
+// ans: 2, 2, 1, 1, undefined, 1, 3
+
+隐式绑定丢失的本质：
+只有当函数被真正“取出来”当成一个普通值传递或赋值时（比如 fn = obj.foo），
+才会丢失上下文。单纯套个括号 () 不算。
+
+数组/类数组的调用陷阱：像 arr[0]() 这种写法，this 永远指向那个数组 arr 本身！
+```
+
+# React 闭包问题
+
+本质上和 js 的闭包是一样的，只是在 React 场景下，因为 React 的一些特殊设计和运行机制，造成了一些不太直观的，反直觉的现象。
+
+React 内部的极简伪代码：
+
+```javascript
+// React 内部的 Fiber 节点档案袋
+const fiberNode = {
+  memoizedState: null, // 这里存着第一个 Hook 的状态，并通过 next 指针连成链表
+  // ... 其他属性
+}
+
+// 你想象中的 useState 底层逻辑大致如此：
+let currentHook = null
+
+function useState(initialValue) {
+  // 1. 找到当前 Hook 的状态（存在函数外部的 Fiber 节点上）
+  let state = currentHook.memoizedState || initialValue // 这个state每次都是新的变量
+
+  // 2. 准备一个更新状态的函数
+  const setState = (newValue) => {
+    currentHook.memoizedState = newValue
+    triggerReRender() // 通知 React 重新执行组件函数！
+  }
+
+  // 3. 把指针移到下一个 Hook，为下一个 useState 做准备
+  currentHook = currentHook.next
+
+  // 🚨【最关键的一步】🚨
+  // 返回的是 state 的“值”，而不是 state 这个变量的“引用”！
+  return [state, setState]
+}
+```
+
+闭包捕获的确实是某个变量，而不是字面量。但问题就出现在，每次执行 render 函数，React 返回的变量都不是同一个，都是新定义的 Fiber 结点中的那个值的副本。
+
+## 解决方案
+
+1.  解决这个问题可以使用 useRef（如果这个值不需要在页面上响应式更新）。
+2.  给 setState 传入回调函数，而不是值，这样，React 每次就会把新的 state 传进来。
+3.  useEffect 依赖函数中加入对应的依赖项，每次都重新捕获变量。
+
+# 手写
+
+## 防抖节流手写
+
+```javascript
+const debounce = (fn, delay) => {
+  let timer = null
+  const debouncedFn = function (...args) {
+    if (timer) {
+      clearTimeout(timer)
+    }
+    timer = setTimeout(() => {
+      fn.apply(this, args)
+    }, delay)
+  }
+  debouncedFn.cancel = () => {
+    if (timer) clearTimeout(timer)
+  }
+  return debouncedFn
+}
+```
+
+要特别注意 this 绑定问题，我们执行 fn 时，其内部的 this 应该和我们从 debounce 里面 return 的函数中的运行时 this 相同，注意要返回普通函数，而不是箭头函数。
+
+```javascript
+// 时间戳版节流函数
+// 特点是：首次立即触发一下，停止点击后一定不会再触发
+const throttle = (fn, delay = 300) => {
+  let lastTime = 0;
+  return function (...args) {
+    const now = Date.now();
+    if (now - lastTime <= delay) {
+      return;
+    }
+    lastTime = now;
+    fn.apply(this, args);
+  };
+};
+
+// 定时器版
+// 特点是：首次触发不会立即执行，但是停止点击后，还会执行一次
+const throttle = (fn, delay = 300) => {
+  let timer = null;
+  return function (...args) {
+    if (timer) return;
+
+    timer = setTimeout(() => {
+      fn.apply(this, args);
+      timer = null;
+    }, delay);
+  };
+};
+
+// 如果要首尾兼顾，有有些麻烦，类似lodash的源码：
+const throttle = (fn, delay = 300) => {
+  let timer = null;     // 引擎1：定时器（负责兜底最后一次）
+  let lastTime = 0;     // 引擎2：时间戳（负责控制首次和固定频率）
+
+  return function (...args) {
+    const now = Date.now();
+
+    // 核心数学题：距离下一次可以开火，还剩多少时间？
+    // 如果是第一次执行，lastTime 是 0，remaining 是一个很大的负数
+    const remaining = delay - (now - lastTime);
+
+    // 分支一：时间戳引擎介入（冷却时间到了，或者第一次触发）
+    if (remaining <= 0 || remaining > delay) {
+      // 1. 如果定时器还在滴答作响，立刻把它掐死，防止它多开一枪
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+
+      // 2. 更新开火时间，并立刻开火！
+      lastTime = now;
+      fn.apply(this, args);
+
+    // 分支二：定时器引擎介入（还在冷却中，但这是冷却期内的新动作，需要兜底）
+    } else if (!timer) {
+      // 只有当前没有定时器在排队时，才安排一个新的定时器
+      timer = setTimeout(() => {
+        // 🚨 重点：定时器触发时，也要更新 lastTime！
+        // 把它更新为此刻的时间，而不是定时器被设定的时间
+        lastTime = Date.now();
+        timer = null; // 清空定时器标识
+
+        // 带着闭包里最新的 this 和 args 开火！
+        fn.apply(this, args);
+      }, remaining); // 👈 绝妙之处：这里等待的时间不是 delay，而是【剩余的冷却时间】！
+    }
+  };
+};
+```
+
+## Promise 相关
+
+```javascript
+// 接收：一个Promise数组
+// 实现：返回一个promise，成功则返回聚合后的res，失败则返回第一个失败的promise
+// 同时要保证返回顺序和输入顺序一致（利用闭包即可）
+Promise.myAll = (promises) => {
+  const settledList = []
+  return new Promise((resolve, reject) => {
+    if (promises.length == 0) return resolve([]) // 1.
+
+    let count = 0 // 2.
+    for (let i = 0; i < promises.length; ++i) {
+      const promise = promises[i]
+      Promise.resolve(promise)
+        .then((res) => {
+          // 4.
+          settledList[i] = res // 3
+          if (++count === promises.length) {
+            resolve(settledList)
+          }
+        })
+        .catch((err) => {
+          reject(err)
+        })
+    }
+  })
+}
+```
+
+```javascript
+// 和all的区别是：第一个settled的，无论是成功还是失败，都直接返回即可
+Promise.myRace = (promises) => {
+  return new Promise((resolve, reject) => {
+    // 这里我看MDN上写的，如果promises为空的话，race会被永远挂起，所以没判断数组为空
+    for (let i = 0; i < promises.length; ++i) {
+      Promise.resolve(promises[i])
+        .then((res) => {
+          resolve(res)
+        })
+        .catch((err) => {
+          reject(err)
+        })
+    }
+  })
+}
+```
+
+```javascript
+// 和all的区别是不管成功或失败都会等待所有的promise结束，并记录结果
+// 注意：Promise.allSettled 的标准规范要求，返回的数组里面装的不能是单纯的原始值，必须是带有 status 的对象！
+// 成功时，返回：{ status: 'fulfilled', value: res }
+// 失败时，返回：{ status: 'rejected', reason: err }
+Promise.myAllSettled = (promises) => {
+  return new Promise((resolve) => {
+    if (promises.length === 0) resolve([])
+
+    let counter = 0
+    const settledList = []
+    for (let i = 0; i < promises.length; ++i) {
+      Promise.resolve(promises[i])
+        .then((res) => {
+          settledList[i] = { status: 'fulfilled', value: res }
+        })
+        .catch((err) => {
+          settledList[i] = { status: 'rejected', reason: err }
+        })
+        .finally(() => {
+          if (++counter === promises.length) {
+            resolve(settledList)
+          }
+        })
+    }
+  })
+}
+```
+
+## call、apply、bind
+
+```javascript
+Function.prototype.myCall = function (context, ...args) {
+  // 1. 处理 context 为 null 或 undefined 的情况，默认指向全局对象
+  context = context || window
+
+  // 2. 使用 Symbol 避免属性冲突
+  const fnKey = Symbol('fn')
+
+  // 3. 将当前函数（this）指向 context 的一个属性
+  context[fnKey] = this
+
+  // 4. 执行函数并获取结果
+  const result = context[fnKey](...args)
+
+  // 5. 删除临时属性并返回结果
+  delete context[fnKey]
+  return result
+}
+
+Function.prototype.myApply = function (context, argsArray) {
+  context = context || window
+  const fnKey = Symbol('fn')
+  context[fnKey] = this
+
+  let result
+  // 校验参数是否为数组（或类数组）
+  if (Array.isArray(argsArray)) {
+    result = context[fnKey](...argsArray)
+  } else {
+    result = context[fnKey]()
+  }
+
+  delete context[fnKey]
+  return result
+}
+
+Function.prototype.myBind = function (context, ...args) {
+  const self = this // 保存原函数
+
+  return function F(...newArgs) {
+    // 考虑作为构造函数调用的情况
+    // 如果 this 是 F 的实例，说明是通过 new 调用的
+    if (this instanceof F) {
+      return new self(...args, ...newArgs)
+    }
+    // 否则，使用 apply 改变 this 指向
+    return self.apply(context, [...args, ...newArgs])
+  }
+}
+```
+
+## 深拷贝
+
+```javascript
+function deepClone(target, map = new WeakMap()) {
+  // 1. 处理 null 或 非对象类型
+  if (target === null || typeof target !== 'object') return target
+
+  // 2. 处理特殊对象：Date 和 RegExp
+  if (target instanceof Date) return new Date(target)
+  if (target instanceof RegExp) return new RegExp(target)
+
+  // 3. 解决循环引用：如果已经拷贝过，直接从 Map 中返回，防止死循环
+  if (map.has(target)) {
+    return map.get(target)
+  }
+
+  // 4. 初始化克隆对象
+  const result = Array.isArray(target) ? [] : {}
+
+  // 5. 存入 Map，记录当前对象已被拷贝
+  map.set(target, result)
+
+  // 6. 遍历所有属性（包含 Symbol 类型的 key）
+  Reflect.ownKeys(target).forEach((key) => {
+    result[key] = deepClone(target[key], map)
+  })
+
+  return result
+}
+```
+
+# 浏览器原理
+
+## 浏览器线程
+
+我们平时说 js 是单线程的，这是没问题的，因为 JS 的引擎是单线程的。
+
+而浏览器是多进程架构的，在其中的**渲染进程**中，又包含多个线程：
+
+- GUI 渲染线程
+
+- 负责 HTML 文档的解析，CSSOM 树和 Render 树的构建及 Layout 和 Paint。
+- **注意：这个线程和 JS 引擎线程互斥！这也是长时间执行 js 会导致页面卡死的原因。**
+
+- JS 执行线程
+
+- 主线程，React 实际上就相当于一段 js 代码，执行在这里，这个线程始终只有一个。
+
+- 事件线程
+- 定时器线程
+- HTTP 请求线程
+- 合成线程
+
+- 接收 GUI 渲染线程的指令，将页面分成多个图层，交给 GPU 进行光栅化并合成上屏。
+- 所以说，用 transform, opacity 等属性修饰的元素，和 GUI 不是一个线程！才比较流畅。
+
+- Web Worker 线程
+
+- JS 提供的多线程能力。主线程可以派生出 Worker 线程来处理复杂计算，它们之间通过 PostMessage 通信，**Worker 线程不能操作 DOM**。
+
+## 浏览器事件循环与渲染
+
+浏览器的事件循环由宏任务微任务的交替执行组成。
+
+需要注意的是：浏览器的 Paint，并不是宏任务或微任务，而是独立于二者之外的一种特殊的任务。
+
+1.  执行宏任务
+2.  清空微任务队列
+3.  可能执行**渲染**
+
+4.  这个频率跟刷新率有关，如果这个循环执行的比较快，这里可能就不渲染。
+5.  完整的渲染流水线：`清空微任务` -> `触发 rAF 回调` -> `计算样式 (Style)` -> `计算布局 (Layout)` -> `绘制 (Paint)` -> `合成 (Composite)`。
+6.  所以使用 rAF 用来制作动画是很丝滑的，在浏览器渲染前修改样式，可以立即生效。
+
+7.  继续执行宏任务
+8.  ...
+
+## 浏览器渲染管线详解
+
+理解浏览器渲染的关键，在于搞懂一个核心概念：**关键渲染路径（Critical Rendering Path, CRP）**。
+
+1.  从服务器拿到一串 HTML 字节流，浏览器的解析器开始工作。
+2.  构建 DOM 树，逐行解析 HTML 文档，遇到标签就转换为 DOM 结点。
+3.  遇到 style 或者是样式表的 link，浏览器会去下载并解析 CSS，构建出一颗描述样式规则的 CSSOM 树。
+
+4.  **注意：\*\***CSS 的解析会阻塞 JS 执行\***\*！因为 JS 里面可能会获取属性的样式，避免出错。**
+5.  **浏览器在 CSSOM 树完全构建好之前，不会渲染任何东西在屏幕上，因为这可能会造成闪烁（**FOUC，无样式内容闪烁**）。**
+
+6.  如果遇到了 script 脚本，浏览器会去下载并解析脚本，js 是解析阻塞的，也就是说在解析 JS 脚本的时候，浏览器会停下 DOM 树的构建（默认情况下 JS 脚本的下载也是同步阻塞的）。
+
+7.  因为 JS 可以修改 DOM 结构，为了不白干。
+8.  **注意到这个链式阻塞：CSS 阻塞 JS，JS 又阻塞 DOM 解析。**
+
+9.  **解决这个问题，可以使用 defer/async 关键字**
+10. **此外，现代浏览器会进行预解析，也就是说阻塞的时候浏览器会提前去下面扫描，有没有需要下载的 js、css、图片等，提前去下载。**
+
+11. 构建了 DOM 树和 CSSOM 树之后，浏览器就会把二者合并成一颗渲染树。
+
+12. 渲染树只包含需要显式在屏幕上的结点。
+
+13. 拿到了渲染树，浏览器就可以从渲染树根部开始，去计算具体的排版和绘制了。
+
+14. Layout（布局/回流/重排）： 浏览器从渲染树的根节点开始计算每个节点的**精确几何位置和大小**（x, y 坐标，宽高）。
+
+15. 如果通过 js 修改了元素大小和位置，或者获取了 offsetHeight 等属性，浏览器必须重新计算布局，也就触发了重排。
+
+16. Paint（绘制、重绘）：确定了位置，接下来就是往这些框框里填入像素（颜色、阴影、文本、边框）。
+
+17. 如果单纯修改元素的颜色等，不会触发重排，只会触发重绘，开销相对较小。
+
+18. **Composite（合成）：**
+
+19. 现代浏览器会将不同的元素分到不同的“图层（Layers）”里单独绘制（比如 3D transform 或 video 标签）。最后交给**合成线程及 GPU** 把这些图层叠在一起显示在屏幕上。
+
+# React 更新渲染原理
+
+这个必须要结合上面讲的浏览器原理来看。
+
+react 整体上就是一段 js 代码，其执行都由 JS 执行引擎负责。将 React 的宏任务和微任务和浏览器的渲染过程结合起来。
+
+1.  某事件回调（宏任务）中调用了 setState，在这个宏任务中，React 不会同步去执行这些变更造成的渲染，而是会标记并收集变更，并注册一个微任务。
+
+1.  这里具体的标记过程是：把当前结点标记为更新（放到当前 Fiber 结点的 UpdateQueue 里面，附上 Lane 优先级），然后从当前结点向上冒泡，一直到根节点，沿途打上 ChildLanes 的标记。
+
+1.  等事件回调函数执行完了之后，就会去清空微任务列表。在这个微任务里面，对状态变更进行批处理（React18 引入的点击事件的自动批处理）。React 会“统揽全局”：它会计算出当前整棵树中**最高优先级**的任务是什么，之后通过 MassageChanel 去注册一个唯一的宏任务执行后面的 render 阶段。
+1.  这个宏任务的的执行内容就是一种时间片调度机制，内部相当于是对一个保存着任务的**优先队列**的遍历过程，每次遍历完之后都去判断一下当前是不是已经到了设定的时间阈值了，如果到了，则保存当前进度、注册下一个宏任务（如果没结束）并结束当前宏任务。
+
+1.  这里详细讲一下这个任务的过程，之前已经把更新打上标记了。这里 React 就会拿到现在旧的 Fiber 树，准备构建一颗新的 Fiber 树（WorkInProgress Tree，简称 WIP 树）。
+
+1.  从根节点开始，使用深度优先搜索（DFS）向下遍历树（begin work 阶段）：
+
+1.  如果结点没变（没有状态更新，props 没变，订阅的 context 没变），就直接浅拷贝复用之前的结点。如果这个结点有 ChildLanes 标记，就顺着往下找。
+1.  知道找到真正发生变更的结点，重新执行 render 函数，拿到新的 jsx。用这个新的 jsx 和之前的子结点进行对比（Diff），看看是应该复用还是插入/删除/修改。根据 Diff 结果，为 B 生成新的 WIP 子 Fiber 节点，并给它们打上代表 DOM 操作的“标签”（Flags，比如 `Placement` 插入，`Update` 更新）。
+
+1.  **注意：DIFF 的实际上是一个组件内部的那些标签！而不是在整颗 Fiber 树中 DIFF！**
+
+1.  注意：这里如果子组件如果没用 memo 包裹的话，因为父组件的 render 重新执行了，props 都变成了新定义的对象，一定会重新渲染。
+
+1.  向下碰到叶子结点之后，就会回溯了（complete work 阶段）：
+
+1.  刚才向下遍历时，React 给需要修改 DOM 的节点打上了标签（Flags）。在向上回溯的过程中，每个父节点都会把子孙节点的标签收集起来，汇聚到自己身上（递进）。
+
+1.  当回到根节点后，就得到了：
+
+1.  一棵完整的、计算好新状态的 **WIP Fiber 树**。
+1.  在这棵树的根节点上，挂着一个通过层层位运算生成的包含子结点更新信息的二进制数。
+
+1.  如果执行结束，React 会同步进入 Commit 阶段，根据 Render 阶段 Diff 出的结果（就是上面那个所有需要真实 DOM 操作的节点链表），更新 DOM。
+
+1.  更新完 DOM 之后，执行 useLayoutEffect 回调了，可以基于最新的样式修改某些样式，避免闪屏。
+1.  这里会注册一个宏任务，后面去执行所有的 useEffect。
+
+1.  不用害怕后面浏览器不渲染，导致 useEffect 先执行。这不会造成问题。
+
+1.  这里也是一个宏任务，这个任务执行完之后，再清空微任务队列，浏览器就可能会进行渲染了。下一个宏任务就会去执行 useEffect。
+
+1.  如果浏览器需要绘制了，执行 rAF，然后进行布局计算，绘制，合成。
+
+# React 性能优化
+
+整体上就是减少不必要的重复渲染。不必要的渲染即 state 和 props 内容都没有发生变化，但组件却重新执行了。
+
+- 使用 useMemo、useCallback+memo/PureComponent。
+
+- useMemo 除了作计算属性的功能，其实也和 useCallback 一样，新定义的对象每次也都是新的引用！
+
+- 状态在满足业务需求的前提下，尽可能下放，这样能影响更少的组件。
+- 使用 key 修饰渲染列表。
+- 对于 context 导致的全量重渲染，我们的解决方法是在保证正确的前提下，把粒度拆的一一些，这样影响的组件就会少一些。
+- 使用 startTransition 标记非紧急更新
+
+# 前端性能和前端安全/网络汇总
+
+## HTTPS
+
+HTTP + TLS 层，实现信息安全三剑客：
+
+- 保密性（防泄漏）
+- 完整性（防篡改）
+- 身份认证（防伪装）
+
+**HTTPS 对什么进行加密？**
+
+1.  请求的主体部分（body）
+2.  请求头
+3.  URL 查询参数
+
+下面我们来介绍信息安全三剑客分别是如何实现的。
+
+### 如何实现防泄露？
+
+防泄漏，即信息传输的内容需要是加密过的，不能是明文，而且这个东西不能被外界解密。即使黑客在传输链路上截获了数据包，看到的也只是一堆乱码，无法还原出真实信息。
+
+本质上来说，具体的信息传输过程，是使用的**对称加密**，即使用一个 `会话密钥` 来进行数据的加解密，浏览器和服务器双方都持有一个相同的会话秘钥。
+
+但这个会话密钥如何产生？就是在 TLS 握手阶段，通过非对称加密交换得到。服务器把公钥发给客户端，客户端在本地随机生成一个会话秘钥，用服务器的公钥加密后发给服务器，即使黑客窃取了这个数据，没有私钥也无法解密，这样双方就同步了会话密钥，后续使用此密钥进行数据传输。
+
+### 如何实现防篡改？
+
+防篡改，即保证消息的完整性和正确性，收到方和发送方看到的数据内容完全一致。
+
+实现：
+
+发送方，将明文和会话秘钥送进一个加密算法，输出：密文 和 认证标签。
+
+接收方，使用相同的会话秘钥对数据进行解密，并使用相同的算法计算认证标签，进行对比。
+
+### 如何实现防伪装？
+
+上面说的是，和服务器交换密钥之后，使用这个交换的密钥进行数据传输，可以防止泄露和篡改。但是，如果一开始请求建立的时候，你就是和黑客的服务器建立的连接呢？（公钥也是它的）。HTTPS 必须可以证明：**你访问的服务器是你真的想要访问的那个。**
+
+必须解决一个根本问题：**当你收到一个公钥时，你凭什么相信它真的是 x 站的，而不是黑客伪造的？**
+
+具体就是通过 **数字证书（CA 证书）。\*\***证书就相当于是网站的身份证！\*\*
+
+- 服务器必须向权威的证书颁发机构（CA）申请一个数字证书。这个证书里包含了服务器的公钥、域名信息以及 CA 的数字签名。
+- 当你访问网站时，服务器首先会下发这个证书。你的浏览器内部预置了各大权威 CA 的根证书，它会利用这些根证书来验证服务器证书的真伪。
+
+- 因为你要访问哪一个服务器是已知的，返回的是不是这个服务器的证书，合不合法，可以通过 CA 来解决。
+
+- 如果验证通过，浏览器就确认了服务器的真实身份，才会继续后面的密钥交换过程。
+
+更详细的可以参考【计算机基础/计算机网络】里面的内容。
+
+## HTTP 各版本对比
+
+| **特性 / 版本**    | **HTTP/1.1**             | **HTTP/2**                      | **HTTP/3**                     |
+| ------------------ | ------------------------ | ------------------------------- | ------------------------------ |
+| **传输层协议**     | TCP                      | TCP                             | **QUIC (基于 UDP)**            |
+| **数据格式**       | 文本 (Text-based)        | 二进制 (Binary Framing)         | 二进制 (Binary Framing)        |
+| **连接复用**       | Keep-Alive (长连接)      | **多路复用 (Multiplexing)**     | 多路复用 (基于独立流)          |
+| **头部压缩**       | 无 (明文传输)            | HPACK 算法                      | QPACK 算法                     |
+| **队头阻塞 (HoL)** | 存在 (应用层队头阻塞)    | 解决应用层，**存在 TCP 层阻塞** | **彻底解决** (应用层 + 传输层) |
+| **连接建立耗时**   | 慢 (TCP 握手 + TLS 握手) | 较慢 (TCP 握手 + TLS 握手)      | **极快 (0-RTT 或 1-RTT)**      |
+
+说几个比较关键的点。
+
+### 队头阻塞
+
+**HTTP1.1** 相比于 HTTP1.0 加入了长连接，多个请求可共用一个 HTTP 连接，但是**请求之间是串行**的，如果前面的请求卡住了，后面的请求全都要等着（一个 HTTP 连接的前提下）。要实现请求并行只能是开启多个 HTTP 连接，但这显然是一个很重的操作，一方面是浏览器对此有限制，另一方面也会消耗双方的内存资源。
+
+注意：这个顺序发送本质上是因为 HTTP 协议中没有对单个请求层面的标识信息，所以只能依赖顺序来确定哪个响应是给哪个请求的。其实业务端是可以并发处理的，只是返回的时候必须要顺序返回。
+
+**HTTP2** 通过把请求拆分成更小的帧，每个帧中加入一个 Stream ID 来实现并发传输。
+
+但是这种方式只是解决了应用层（HTTP）层面上的阻塞问题，但因为 HTTP2 的这种实现是把很多请求放到一个连接中并行发送，这结合 TCP 协议的特性，保证绝对有序，就有可能会在传输层上造成阻塞，特别是在弱网环境下。
+
+`[包1(图片A)]` -> `[包2(图片A)]` -> `[包3(脚本B丢了!)]` -> `[包4(脚本B)]` -> `[包5(图片A)]`
+
+如果包 3 丢了，包 4 和包 5 必须要等着包 3 重传成功之后才可以交给上层应用层，这就是 TCP 造成的队头阻塞现象。
+
+**HTTP3** 为了解决 TCP 的这种底层限制，设计了基于 UDP 的 QUIC 协议，HTTP3 本质上就是跑在 QUIC 上的 HTTP。
+
+HTTP3 虽然本质上还是基于多路复用的，基于拆分的帧+Stream ID 的模式，但是这个 **Stream ID 被下放到了传输层**，也就是 QUIC 协议层，这样，传输层就可以区分是哪个请求的包丢了，不去影响别的请求！
+
+### 连接建立耗时
+
+主要说 QUIC 为什么这么快，主要是因为 QUIC 的序列号是严格递增的，而不是循环，所以没有历史消息的问题，而且基于新的策略，可以直接在一个请求内就把证书等等交换好，如果有历史缓存，甚至可以直接在连接的时候发送请求，将握手过程的时延降为 0。
+
+TCP 要三次握手，主要是考虑到：
+
+1.  可靠同步双方的序列号。
+2.  如果是两次握手，在服务端，手段 SYN，就分配内存并发送数据，容易因此遭到网络攻击，或者单纯因为丢包就浪费服务器资源。
+
+QUIC 就是通过自己设计的一些补丁去解决这些具体问题，比如三倍大小的规则，这种补丁，具体细节还感觉没必要了解了。
+
+### QUIC vs TCP based
+
+QUIC 的优势在于：弱网场景下对丢包的容忍度高，代价小。但是缺点是：历史短，没有什么硬件加速，计算靠 CPU，很吃服务器资源，是适合大厂去做优化的奢侈品；同时，因为一些网络攻击的因素，很多厂商对于 UDP 的流量放行不如 TCP。
+
+对于比较稳定的网络环境，比如后端服务之间的内网；或者是不会一次性发很多请求的场景，比如邮件服务，文件传输等等，TCP 还是很好的，因为历史长，有很多硬件加速。
+
+因此，QUIC 更适合弱网环境，请求并发量很大的情况，能很大程度上降低丢包的成本。而 TCP based HTTP 适合网络情况好，或者不会同时并发很多请求的场景，硬件基础和整体的支持情况都会更好。
+
+## 登录相关详解
+
+### JWT 和普通 token 的区别
+
+核心就在于这个 token 本身是不是有状态的，需不需要服务器存储。
+
+普通的 token 需要在服务器后者是客户端缓存，收到了之后对比一下看对不对，过没过期。
+
+而 jwt（json web token）则是在 token 内部就自带状态，服务器可以去解密这个 token 来判断对不对，过没过期。
+
+#### jwt 格式
+
+由.连接的三段字符串组成：
+
+1.  HEDER 部分，固定包含算法和 token 类型，对这个 json 进行 base64url 加密。
+2.  PAYLOAD，包含数据，同样进行 base64url 加密。
+
+```json
+{
+  // --- 标准声明 ---
+  "sub": "1001", // 用户的唯一 ID
+  "iat": 1712400000, // 签发于某个具体时间
+  "exp": 1712407200, // 2小时后过期
+
+  // --- 自定义声明 ---
+  "username": "dongyaning", // 用户名，前端拿到后可以直接显示在导航栏的 "欢迎回来" 后面
+  "role": "admin", // 用户角色，前端根据这个字段，决定要不要在页面上显示“后台管理”的入口
+  "avatar": "https://..." // 用户简单的头像链接
+}
+```
+
+3.  SIGNATURE，把前两段拼接起来，密钥加盐，最后对加密后的密文进行 base64url 加密。
+
+服务端收到之后就可以通过相同的密钥去验证前两个部分是不是正确的，是不是被篡改过，然后根据第二部分的信息就可以知道这个用户是谁，过没过期。
+
+**要特别注意：前两个部分并没有加密，base64url 不是加密！因此，绝对不要在里面传递敏感信息，签名只是防篡改。**
+
+## 网络攻击
+
+### CSRF（Cross-Site Request Forgery，跨站请求伪造）
+
+场景为：
+
+- 登陆了 A 网站，浏览器里面存了 A 的 cookie。
+- 访问恶意网站/网址 B，B 偷偷向 A 网站发送请求。
+- 浏览器自动带上 A 网站的 cookie，导致意料之外的效果。
+
+黑客不需要拿到 cookie，就可以利用浏览器的机制实现攻击。
+
+#### 预防
+
+核心就是打破浏览器的无脑自动化，不要随便就把 cookie 带上。
+
+##### SameSite
+
+- `**SameSite=Strict**`**（最严格）：** 只要发起请求的网站（你的浏览器地址栏里的网址），和 Cookie 所属的域名不一致，浏览器**绝对不带**这个 Cookie。黑客的 `evil.com` 发往 `bank.com` 的请求会被彻底剥夺身份，变成匿名请求。
+- `**SameSite=Lax**`**（默认推荐）：** 稍微宽松一点。对于一些顶层导航（比如你点击链接从第三方网站跳回你的博客主页）并且是安全的 GET 请求，允许带 Cookie。但如果是第三方网站发起的 POST 请求，或者 `&lt;img>`、`&lt;form>`这种后台请求，依然拦截。
+
+##### CSRF token
+
+登陆成功或者打开一个页面的时候，服务器下发另一个动态 token，隐藏在网页中。请求的以后需要一起带过去，浏览器验证两个 token。
+
+##### 校验 Referer / Origin
+
+里面记录了请求是从哪个域名发起的，后端可以去判断，如果不是白名单里面的内容，就不执行。但是因为浏览器的隐私策略，这个字段有时候可能不传，所以不太可靠，可以作为辅助。
+
+### XSS（Cross SIte Scriping）
+
+叫 XSS 是因为 CSS 已经被用了，容易造成误解。
+
+本质：黑客把恶意 js 代码塞到了网站里，并且让其他用户执行了这段代码。
+
+主要有以下几种方式：
+
+1.  比如评论这种会入库的数据，攻击者评论一段恶意 js 代码，这样所有加载这条评论的都会中招。
+2.  服务器有时候会拼接请求参数到网页中，攻击者利用这个构造恶意链接，诱导其他用户点击，用户请求到的 html 里包含恶意脚本，自动执行。
+3.  纯前端的一种，前端直接把一些输入或者是参数通过 innerHTML 放到页面里面。
+
+总之核心，就是攻击者通过输入，不管是评论也好，搜索也好，链接也好，去构建恶意脚本。因为前后端漏洞，这些脚本被不加过滤地放入 html 中，展示给其他的用户。
+
+#### 解决
+
+**核心原则：不要直接信任用户任何内容和形式的输入。**
+
+- 要对用户的输入做安全校验和转义。
+- CSP（内容安全策略），比如：`Content-Security-Policy: script-src 'self' https://trusted.cdn.com;`
+
+- 对于非白名单外链：&lt;script src="[https://hacker.com/steal.js">&lt;/script>](https://hacker.com/steal.js"></script>)，直接拦截
+- 开启了 CSP 之后，**默认拦截所有内联脚本**。即直接使用 script 写的。
+- 所以这个方法很好很安全。
+
+- 守住底线，就算是执行了，也不让黑客访问身份认证这种敏感信息，设置 HTTPONLY COOKIE。
+
+## Web Vitals
+
+### LCP（Largest Contentful Paint）
+
+页面加载过程中，**最大可见元素**渲染完成的时间。
+
+# 认证体系
+
+# iframe
+
+沙盒，sandbox，是一个概念，而不是一个特殊的东西。泛指一种策略：把不可信代码放进一个受限环境里执行，限制它能触达的资源。任何满足"隔离 + 授权"的东西都可以叫沙盒，iframe + 配置只是浏览器里的一种实现方式。
+
+iframe 会在宿主页面内部再创建一个完整的、独立的**浏览上下文**。
+
+- 有独立的 document、独立的 JS 执行环境（独立的全局对象、事件循环）
+- 独立的 window、URL 历史
+- 与宿主共享：网络栈、渲染进程（同源时）、cookie（同源时）、浏览器 UI
+
+```html
+<iframe src="https://example.com/child" title="child" />
+```
+
+## sandox：核心隔离手段
+
+白名单模式
+
+```javascript
+<!-- 完全禁用：无脚本、无表单提交、无弹窗、opaque origin -->
+<iframe sandbox src="..." />
+
+<!-- 允许脚本，但保持 opaque origin（你的用法） -->
+<iframe sandbox="allow-scripts" src="..." />
+```
+
+```markdown
+常用 token：
+
+allow-scripts：允许执行 JS。注意：一旦给了这个，就不能再给 allow-same-origin，否则等于裸奔（脚本能拿到自己 origin 的完整权限）
+allow-same-origin：允许 iframe 保持自己的真实 origin，可以访问同源资源、localStorage 等
+allow-forms：允许表单提交
+allow-popups：允许 window.open / target=\_blank
+allow-top-navigation：允许 iframe 把顶层页面导航走
+allow-modals：允许 alert/confirm 等
+allow-pointer-lock、allow-downloads、allow-presentation 等
+```
+
+​

@@ -1,0 +1,542 @@
+---
+title: 'ts'
+date: '2025-11-25'
+updated: '2025-11-25'
+description: 'type 和 interface 它们的设计初衷完全不同：interface 是为了描述“对象的形状”（偏面向对象），而 type 则是为了给各种类型“起别名”（偏函数式和灵活组合）。 主要讲区别： image.pngassets/ts-1'
+published: true
+category: '前端学习'
+tags: []
+---
+
+# type 和 interface
+
+它们的设计初衷完全不同：`**interface**` **是为了描述“对象的形状”（偏面向对象），而** `**type**` **则是为了给各种类型“起别名”（偏函数式和灵活组合）。**
+
+主要讲区别：
+
+![image.png](/images/posts/我个人的-前端学习-ts/ts-1.png)
+
+1.  扩展方式不同。interface 使用 extends 关键字，而 type 使用 & 表示交叉类型。
+2.  **声明合并**，如果定义了两个同名的 interface，ts 会自动将它们合并为一个。
+
+```javascript
+interface User {
+  name: string;
+}
+
+interface User {
+  age: number;
+}
+
+// 结果：User 拥有 name 和 age 两个属性
+const me: User = { name: "Gemini", age: 1 };
+
+// --- 如果换成 type ---
+type Admin = { name: string; };
+type Admin = { role: string; }; // ❌ 报错：Duplicate identifier 'Admin'.
+```
+
+3.  type 的表达能力比 interface 更强，更广。interface 只能用来定义对象或函数的结构，而 type 可以定义任何东西。
+
+```javascript
+// 1. 基本类型别名
+type UserID = string | number;
+
+// 2. 联合类型（极常用，比如定义有限的状态字面量）
+type ThemeMode = 'light' | 'dark' | 'system';
+type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
+
+// 3. 元组类型（固定长度和类型的数组）
+type Point = [number, number]; // 比如坐标 [x, y]
+
+// 提取一个类型中所有的键，生成联合类型
+type Keys = keyof { name: string; age: number }; // "name" | "age"
+
+// 根据条件推断类型
+type IsString<T> = T extends string ? true : false;
+```
+
+4.  映射类型：如果你想基于已有的类型创建一个新类型，必须使用 `type`。`interface` 不支持这种动态的类型生成。
+
+```javascript
+type Keys = "firstName" | "lastName";
+
+// 动态生成属性名
+type NameMap = {
+  [K in Keys]: string;
+};
+
+// 结果等同于：
+// { firstName: string; lastName: string; }
+```
+
+使用选择：
+
+在现代开发中，社区普遍推荐的原则是：
+
+1.  **优先使用** `**interface**`：当你在定义组件的 Props、API 响应数据或其他纯粹的对象结构时。它的性能稍微好一点点（TS 内部有缓存机制），且错误提示通常更清晰。
+2.  **不得不选** `**type**` **时再用它**：当你需要使用联合类型、元组，或者需要进行复杂的逻辑运算（如 `infer`、映射类型）时。
+
+# any 和 unkown
+
+any 就相当于退回了 js，不对类型做校验和限制。
+
+unkown 的意思是不知道什么类型，但是使用的时候会有限制，不知道就不能随便用。必须首先对类型进行收窄，才可以使用。
+
+```typescript
+// ❌ 危险的 any
+function processData(data: any) {
+  // 哪怕 data 是个数字，这里调用 toLowerCase 也不会在编译时报错，只会在运行时崩溃
+  console.log(data.toLowerCase())
+}
+
+// ✅ 安全的 unknown
+function processSafeData(data: unknown) {
+  // 报错：TS 不允许你直接操作 unknown 类型
+  // console.log(data.toLowerCase());
+
+  // 必须先进行“类型收窄”（Type Narrowing）
+  if (typeof data === 'string') {
+    // 此时 TS 确信 data 是字符串，允许调用
+    console.log(data.toLowerCase())
+  }
+}
+```
+
+# void 和 never
+
+void 表示空，一般就是用来表示函数没有返回值。
+
+never 表示永远不可能发生的状态，可以通过 never 做一些边界检查，异常抛出等。
+
+```typescript
+type RequestStatus = 'idle' | 'loading' | 'success' | 'error'
+
+function handleStatus(status: RequestStatus) {
+  switch (status) {
+    case 'idle':
+      return '准备请求'
+    case 'loading':
+      return '加载中...'
+    case 'success':
+      return '请求成功！'
+    case 'error':
+      return '请求失败！'
+    // 假设未来有一天，你的同事在这个 switch 里面漏写了新加的状态
+    // 你能在这里写几行代码，利用 `never` 类型，
+    // 让 TS 在编译阶段就自动拦截（报错）这种遗漏吗？
+    default:
+      // 你的代码写在这里：
+      let neverReach: never = status
+      return neverReach
+  }
+}
+```
+
+# 鸭子类型（有对应的字段就行，叫什么不重要）
+
+“如果它走起来像鸭子，叫起来像鸭子，那它就是鸭子”
+
+```typescript
+interface User {
+  name: string
+  age: number
+}
+interface Admin {
+  name: string
+  age: number
+  role: string
+}
+
+function printUser(user: User) {
+  console.log(user.name)
+}
+
+const adminInfo: Admin = { name: 'Admin', age: 30, role: 'super' }
+
+// ✅ 完美运行。即使 adminInfo 的类型是 Admin，
+// 但因为它“包含了” User 所需的所有结构（name 和 age），所以 TS 认为它是合法的 User。
+printUser(adminInfo)
+```
+
+# 泛型
+
+理解泛型的核心秘诀就是一句话：**把类型也当成一种可以传递的参数。**
+
+## 泛型函数
+
+```typescript
+// 声明：在函数名后面加上 <T>
+function wrapInArray<T>(value: T): T[] {
+  return [value]
+}
+
+// 使用：
+const numArr = wrapInArray<number>(123) // 显式填坑：明确告诉 TS，T 是 number
+const strArr = wrapInArray('hello') // 隐式推断：TS 自动推断 T 是 string
+```
+
+```typescript
+// 在 .ts 文件中：
+const wrap = <T>(value: T): T[] => [value]
+
+// ⚠️ 在 .tsx 文件中，为了防止编译器把 <T> 当成 HTML 标签，需要加一个逗号，或者使用 extends：
+const wrapInTsx = <T>(value: T): T[] => [value]
+// 或者
+const wrapInTsx2 = <T extends unknown>(value: T): T[] => [value]
+```
+
+## 泛型接口
+
+```typescript
+// 声明：带有默认类型的泛型接口
+interface PaginatedResponse<T = any> {
+  total: number;
+  pageSize: number;
+  currentPage: number;
+  list: T[]; // 列表里的具体数据类型由外部决定
+}
+
+interface User { name: string; age: number; }
+interface Article { title: string; content: string; }
+
+// 使用：
+// 1. 传入 User 类型，此时 list 被推断为 User[]
+const userPage: PaginatedResponse<User> = {
+  total: 100, pageSize: 10, currentPage: 1, list: [{ name: 'Alice', age: 20 }]
+};
+
+// 2. 如果不传泛型参数，T 就会使用默认值 any（不推荐在严格模式下这么做）
+const unknownPage: PaginatedResponse = { ... };
+```
+
+## 泛型约束
+
+在函数内部使用泛型变量时，由于事先不知道它是哪种类型，所以不能随意操作它的属性。我们必须用 `extends` 关键字来给这个泛型“划定底线”。
+
+```typescript
+// 定义一个底线：必须有 length 属性，且是数字
+interface WithLength {
+  length: number
+}
+
+// 声明约束：T 可以是任何类型，但必须“继承”/“满足” WithLength 的结构
+function logLength<T extends WithLength>(arg: T): T {
+  console.log(arg.length) // 因为有约束，TS 确信 arg 有 length 属性，不会报错
+  return arg
+}
+
+// 使用：
+logLength('hello') // ✅ 字符串有 length 属性
+logLength([1, 2, 3]) // ✅ 数组有 length 属性
+logLength({ length: 10, name: 'box' }) // ✅ 对象包含 length 属性
+// logLength(123);       // ❌ 报错：数字没有 length 属性
+```
+
+## 泛型类
+
+```typescript
+class CacheManager<T> {
+  private data: Map<string, T> = new Map() // 类的类型在这里写，不是指定某个类型
+
+  set(key: string, value: T): void {
+    this.data.set(key, value)
+  }
+
+  get(key: string): T | undefined {
+    return this.data.get(key)
+  }
+}
+
+// 使用：创建一个专门存储数字的缓存实例
+const numberCache = new CacheManager<number>()
+numberCache.set('score', 100)
+// numberCache.set("name", "Alice"); // ❌ 报错：类型“string”的参数不能赋给类型“number”的参数
+
+// 使用：创建一个专门存储对象类型的缓存实例
+const userCache = new CacheManager<{ name: string }>()
+userCache.set('admin', { name: 'admin' })
+```
+
+# typeof 与 keyof
+
+typeof 与 js 中不同的地方在于：ts 中 typeof 对象不会返回 object，而是会返回一个 type。
+
+keyof 可以提取一个类型的**键组成的字符串联合类型**。
+
+```typescript
+// 这是一个纯 JavaScript/TypeScript 的“值”（运行在内存中）
+const themeConfig = {
+  primary: '#3b82f6',
+  secondary: '#10b981',
+  background: '#ffffff',
+  text: '#1f2937',
+} as const // as const 将其断言为只读常量，防止推断为泛泛的 string
+
+// 深度解析 1：typeof 提取值的形状
+// 此时 ThemeShape 是一个具体的类型：{ readonly primary: "#3b82f6"; ... }
+type ThemeShape = typeof themeConfig
+
+// 深度解析 2：keyof 提取对象类型的所有键，生成联合类型
+// 此时 ThemeKey 的类型变成了："primary" | "secondary" | "background" | "text"
+type ThemeKey = keyof ThemeShape
+
+// 极致的组合拳（一步到位）：
+type TailwindColors = keyof typeof themeConfig
+
+// 实战应用：你的通用按钮组件就可以直接复用这个推导出来的类型，拒绝硬编码
+function Button({ color }: { color: TailwindColors }) {
+  // ...
+}
+```
+
+# for 遍历 类型
+
+```typescript
+interface ArticleEntity {
+  id: string
+  title: string
+  content: string
+  authorId: string
+}
+
+// 需求：在编辑 NingBlog 文章时，提交的表单不一定包含所有字段，我们需要一个“全属性可选”的类型。
+
+// 深度手写：映射类型
+type MakeOptional<T> = {
+  // 遍历 T 的所有键（P）。语法 [P in keyof T]
+  // 给每个属性加上 ?（可选符）
+  // 值的类型保持原样（T[P] 叫做索引访问类型）
+  [P in keyof T]?: T[P]
+}
+
+// 使用：
+type DraftArticle = MakeOptional<ArticleEntity>
+// 此时 DraftArticle 的结构自动变成了：
+// { id?: string; title?: string; content?: string; authorId?: string; }
+```
+
+# 条件类型
+
+```typescript
+// 语义：如果 T 能够兼容（赋值给）U，则返回类型 X，否则返回类型 Y
+type IsString<T> = T extends string ? true : false
+
+type A = IsString<'hello'> // true
+type B = IsString<123> // false
+
+type ToArray<T> = T extends any ? T[] : never
+
+// 你以为的返回结果可能是：(string | number)[]
+// 实际的返回结果是：string[] | number[]
+type MixedArray = ToArray<string | number>
+```
+
+# 模式匹配与推断 infer
+
+```typescript
+// 深度手写：UnwrapPromise
+type UnwrapPromise<T> = T extends Promise<infer U> ? U : T
+
+// 解析这句“天书”：
+// 1. T 如果能满足 Promise<某一个类型> 的结构...
+// 2. 那么，请把那个“某一个类型”提取出来，命名为 U。
+// 3. 如果满足，返回 U；如果不满足（说明 T 不是个 Promise），原样返回 T。
+
+// 测试：
+type Res1 = UnwrapPromise<Promise<string>> // Res1 的类型变成了 string
+type Res2 = UnwrapPromise<number> // Res2 的类型依然是 number
+```
+
+# TS in React
+
+```typescript
+const [...] = useState(false) // 这里会自动推断为 boolean
+
+// 但是如果是对象类型，一开始没有值，写个null，就会推断为null类型，我们就需要去指定类型
+
+interface UserProfile {
+  id: string;
+  nickname: string;
+  avatarUrl: string;
+}
+
+// ❌ 错误写法：TS 会推断 user 为 null，当你后续调用 setUser(对象) 时会报错！
+const [user, setUser] = useState(null);
+
+// ✅ 优雅写法：告诉 TS，这里的状态“要么是 UserProfile，要么是 null”
+const [user, setUser] = useState<UserProfile | null>(null);
+
+// 使用时，TS 会强制你进行空值检查（可选链），极其安全
+return (
+  <div>
+    {/* user 可能是 null，所以必须用 user?.nickname */}
+    <span>欢迎，{user?.nickname || '游客'}</span>
+  </div>
+);
+```
+
+```typescript
+// 场景A：绑定DOM元素
+// 规则：泛型传入具体的 HTMLElement 类型，初始值必须是 null。
+
+import { useRef, useEffect } from 'react';
+
+const CommentInput = () => {
+  // 必须指明是 HTMLInputElement，并且初始值给 null
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // TS 知道 inputRef.current 可能为 null（还没挂载），所以强制你检查
+    if (inputRef.current) {
+      inputRef.current.focus(); // 此时 TS 确信它是 Input 元素，拥有 focus 方法
+    }
+  }, []);
+
+  return <input ref={inputRef} placeholder="写下你的评论..." />;
+};
+
+// 场景 B：作为不会触发重新渲染的实例变量（如定时器）
+// 规则：不用强求初始值必须是 null，泛型传入你需要存储的数据类型。
+// 浏览器环境下的 setTimeout 返回的是 number
+const timerRef = useRef<number | undefined>(undefined);
+
+const startTimer = () => {
+  // 记录定时器 ID，这不会触发重新渲染
+  timerRef.current = window.setTimeout(() => {
+    console.log('时间到');
+  }, 1000);
+};
+
+const clearTimer = () => {
+  if (timerRef.current !== undefined) {
+    clearTimeout(timerRef.current);
+  }
+};
+```
+
+可以发现，利用这种联合类型如：Object | null / undefined 的方式声明类型是比较好的最佳实践。
+
+因为这样既可以解决初始值问题，又可以强制在使用的时候进行空值校验。
+
+```typescript
+import { createContext, useContext, useState } from 'react';
+
+interface ThemeContextType {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+}
+
+// 痛点：createContext 需要一个初始值。很多开发者为了不报错，会乱写一个空对象然后 as 断言。
+// ✅ 正确做法：利用泛型，允许 Context 的初始值为 undefined
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+// 封装一个自定义 Hook，把类型检查收拢在内部，外部调用时就不用每次都判断 undefined 了
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+
+  // 详尽检查：如果组件没有被 Provider 包裹，抛出明确错误
+  if (context === undefined) {
+    throw new Error('useTheme 必须在 ThemeProvider 内部使用');
+  }
+
+  // 代码走到这里，TS 已经 100% 确信 context 就是 ThemeContextType 类型
+  return context;
+};
+
+// 顶层 Provider 组件
+export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+```
+
+# 网络请求封装
+
+定义后端的相应结构：
+
+```typescript
+// src/types/api.ts
+
+// 这是一个通用的基础响应结构，核心数据 data 被抽离为泛型 T
+export interface ApiResponse<T = any> {
+  code: number // 业务状态码，比如 200, 401, 500
+  message: string // 提示信息
+  data: T // 真正的业务数据，类型由外部传入！
+}
+```
+
+axios 拦截器
+
+```typescript
+// src/utils/request.ts
+import axios from 'axios'
+import type { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios'
+
+// 1. 创建 axios 实例
+const service: AxiosInstance = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || '/api',
+  timeout: 10000,
+})
+
+// 2. 响应拦截器：核心类型收窄与错误拦截
+service.interceptors.response.use(
+  (response: AxiosResponse<ApiResponse>) => {
+    // 这里的 response.data 就是咱们上面定义的 ApiResponse 结构
+    const res = response.data
+
+    // 假设业务线规定 code 为 200 才算成功
+    if (res.code === 200) {
+      return res // 注意：拦截器返回后，后面的类型还是 ApiResponse
+    } else {
+      // 统一处理业务错误，比如弹窗提示 res.message
+      console.error('API Error:', res.message)
+      return Promise.reject(new Error(res.message || 'Error'))
+    }
+  },
+  (error) => {
+    // 处理 HTTP 级别的网络错误 (404, 500 等)
+    return Promise.reject(error)
+  }
+)
+```
+
+封装工具函数
+
+```typescript
+// 继续在 src/utils/request.ts 中添加：
+
+// 核心封装：定义一个通用的请求函数
+// 泛型 T 默认是 any，但强烈建议在调用时传入具体类型
+const request = async <T = any>(config: AxiosRequestConfig): Promise<ApiResponse<T>> => {
+  try {
+    // 这里的泛型传递非常关键：把 T 传给 axios.request，让它知道最后会返回 ApiResponse<T>
+    const response = await service.request<ApiResponse<T>>(config)
+    // 因为拦截器里直接返回了 response.data，所以这里其实拿到的已经是剥离了 HTTP header 后的数据体了
+    return response as unknown as ApiResponse<T>
+  } catch (error) {
+    return Promise.reject(error)
+  }
+}
+
+// 导出常用的快捷方法
+export const api = {
+  get: <T>(url: string, params?: object) => request<T>({ method: 'GET', url, params }),
+  post: <T>(url: string, data?: object) => request<T>({ method: 'POST', url, data }),
+  put: <T>(url: string, data?: object) => request<T>({ method: 'PUT', url, data }),
+  delete: <T>(url: string) => request<T>({ method: 'DELETE', url }),
+}
+```
+
+使用的时候就可以方便地推断类型了。
+
+​

@@ -1,0 +1,79 @@
+---
+title: '爬虫工作流'
+date: '2024-12-10'
+updated: '2024-12-10'
+description: 'linskills 是 react + supabase baas 架构。 目前的流程为： 1. import-skills.mjs 读取本地 .ndjosn 文件。 2. 标准化数据、批量写入 suapabase。 3. 前端读取数据库。'
+published: true
+category: '前端学习'
+tags: []
+---
+
+LinSkills 是 React + supabase Baas 架构。
+
+目前的流程为：
+
+1.  import-skills.mjs 读取本地 .ndjosn 文件。
+2.  标准化数据、批量写入 suapabase。
+3.  前端读取数据库。
+
+合适的技术方案是：重新写一个 nodejs 脚本，和import-skills.mjs 作用类似，配合 Github Action 定时执行。
+
+### 阶段 1：skills 列表获取
+
+负责不断向 clawhub 的 Convex 后端要数据。
+
+1.  **游标初始化**：设定初始 `cursor` 为 null 或空。
+2.  **请求列表**：向 Convex 接口发送带有当前 `cursor` 的 Payload，请求获取 50 条（或更多，这里确定一下能请求多少，TODO）技能简要信息。
+3.  **提取清单**：从返回的 JSON 中提取出这批技能的 `slug`、`versionId`、基础属性（原作者、下载量、星标数等），以及下一页的 `continueCursor`。
+
+> 这里重要的是 slug 和 versionId，基础属性对于当前数据库中没有的 skill 可以用于初始化，对于已有的没必要覆盖更新。
+>
+> slug：用于拼接 zip 下载地址。
+>
+> versionId：用于请求 SKILL.md 文件以及判断更新。
+
+4.  **推入队列**：将这批提取到的轻量级任务对象，使用 plimit 控制并发量，异步并发处理。
+5.  **循环翻页**：使用新的 `cursor` 继续请求，直到达到预设的结束条件。
+
+6.  因为现在已经初始化过了，直接走增量逻辑和更新逻辑。
+7.  clawhub 的 skills 搜索支持对 **newest** 和 **recently updated** 筛选和排序。
+8.  分别**从新到旧请求并处理**（这里加入筛选逻辑，不是每个 skill 都要同步）（顺序是先处理 recently updated，再处理 newest）**：**
+
+9.  对于 newest，遇到已经存在的 skill 就可以结束了（slug 判断）。
+10. 对于 recently updated（这个分支如果遇到库里没有的就 continue），遇到 latestVersionId 没有变化的就可以结束了。
+
+### 阶段 2：详情抓取与 LLM 解析
+
+工作线程执行：
+
+1.  **拉取 SKILL.md 原文**：
+
+- 有一个单独的获取 SKILL.md 的接口（传入 `versionId`）。
+- 获取到完整的 Markdown 文本。
+
+2.  **组装 Prompt 喂给 LLM**：
+
+- 将获取到的原版 `SKILL.md` 文本嵌入到你们预设的 Prompt 中。
+- 如：“请分析以下 AI Agent 技能代码，帮我提取并生成：1. 一句话核心功能（30字内）；2. 详细的适用场景描述（分点说明）；3. 三个最匹配的分类标签；4. 预估的用户群体。”
+
+3.  **解析 LLM 响应**：拿到 LLM 返回的结构化 JSON，与第一阶段的基础属性合并。
+
+这里加入验证、重试、降级等兜底机制，防止 LLM 返回不稳定导致更新流程终止。
+
+### 阶段 3：压缩包对象存储（和阶段 2 并行执行）
+
+1.  拼装官方底层下载接口：`https://wry-manatee-359.convex.site/api/v1/download?slug=&#123;slug&#125;`。
+2.  拿到 HTTP Response 的数据流直接输出到对象存储服务（根据具体对象存储服务确定细节）。
+3.  得到压缩包链接，与前面得到的数据对象合并，作为最终落库的对象。
+
+### 阶段 4：落库
+
+1.  将前面拿到的所有数据组织整合：
+
+- 基础信息（原作者、版本号）
+- LLM 润色后的高质量描述、标签、场景
+- 转存后的压缩包链接
+
+2.  数据插入到 supabase。
+
+​

@@ -1,0 +1,59 @@
+---
+title: '认证鉴权(JWT-JSON_Web_Tokens)'
+date: '2023-03-09'
+updated: '2023-03-09'
+description: '- 认证 authentication： 你是谁。是验证您的身份的凭据（例如用户名/用户 id 和密码），通过这个凭据，系统得以知道你就是你，也就是说系统存在你这个用户。所以，authentication 被称为身份/用户验证。 - 授权 '
+published: true
+category: '后端学习'
+tags: ['系统设计']
+---
+
+- **认证 (Authentication)：** 你是谁。是验证您的身份的凭据（例如用户名/用户 ID 和密码），通过这个凭据，系统得以知道你就是你，也就是说系统存在你这个用户。所以，Authentication 被称为身份/用户验证。
+- **授权 (Authorization)：** 你有权限干什么。发生在 **Authentication（认证）** 之后。授权嘛，光看意思大家应该就明白，它主要掌管我们访问系统的权限。比如有些特定资源只能具有特定权限的人才能访问比如 admin，有些对系统资源操作比如删除、添加、更新只能特定人才具有。
+
+# JWT 组成
+
+JWT 本质上就是一组字串，通过（`.`）切分成三个为 Base64 编码的部分：
+
+- **Header（头部）** : 描述 JWT 的元数据，定义了生成签名的算法以及 `Token` 的类型。Header 被 Base64Url 编码后成为 JWT 的第一部分。
+- **Payload（载荷）** : 用来存放实际需要传递的数据，包含声明（Claims），如`sub`（subject，主题）、`jti`（JWT ID）。Payload 被 Base64Url 编码后成为 JWT 的第二部分。
+- **Signature（签名）**：服务器通过 Payload、Header 和一个密钥(Secret)使用 Header 里面指定的签名算法（默认是 HMAC SHA256）生成。生成的签名会成为 JWT 的第三部分。
+
+JWT 示例：xxxxx.yyyyy.zzzzz
+
+```latex
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.
+eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.
+SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+```
+
+# 基于 JWT 进行身份验证
+
+简化后的步骤如下：
+
+1.  用户向服务器发送用户名、密码以及验证码用于登陆系统；
+2.  如果用户用户名、密码以及验证码校验正确的话，服务端会返回已经签名的 Token，也就是 JWT；
+3.  客户端收到 Token 后自己保存起来（比如浏览器的 `localStorage` ）；
+4.  用户以后每次向后端发请求都在 Header 中带上这个 JWT ；
+5.  服务端检查 JWT 并从中获取用户相关信息。
+
+两点建议：
+
+1.  建议将 JWT 存放在 localStorage 中，放在 Cookie 中会有 CSRF 风险。
+2.  请求服务端并携带 JWT 的常见做法是将其放在 HTTP Header 的 `Authorization` 字段中（`Authorization: Bearer Token`）。
+
+# JWT 的安全性保障
+
+前面说了，JWT 包含 Header、Payload 和 Signature。Signature 就跟数字签名似的，是根据 Header、Payload 和一个密钥生成的。客户端发送 JWT 到服务器之后，服务器会根据三者再生成一个 Signature，进行对比。
+
+所以只要密钥不泄露，这个传输就是安全的。**JWT 安全的核心在于签名，签名安全的核心在密钥\*\***。\*\*
+
+**密钥就是 JWT 安全的信任锚点和信任根**。
+
+总结：
+
+JWT 其中一个很重要的优势是无状态，但实际上，我们想要在实际项目中合理使用 JWT 做认证登录的话，也还是需要保存 JWT 信息。
+
+JWT 也不是银弹，也有很多缺陷，具体是选择 JWT 还是 Session 方案还是要看项目的具体需求。万万不可尬吹 JWT，而看不起其他身份认证方案。
+
+​

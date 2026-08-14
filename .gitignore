@@ -42,3 +42,7 @@ next-env.d.ts
 
 # cursor
 /.cursor
+
+# mission-flow / superpowers 流程临时文件
+.superpowers/
+docs/superpowers/

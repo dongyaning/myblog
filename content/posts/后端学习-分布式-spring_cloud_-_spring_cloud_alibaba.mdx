@@ -1,0 +1,288 @@
+---
+title: 'Spring_Cloud_&_Spring_Cloud_Alibaba'
+date: '2022-03-12'
+updated: '2022-03-12'
+description: 'spring cloud 其实就是分布式微服务架构，和单体架构，集群架构相比的。 单体架构就是所有业务服务都在一个服务器上，数据服务也在一个服务器上。这样显然不能支持很大的应用。 后面就出现了集群，就是有好多个服务器，通过网关来转发同时负载'
+published: true
+category: '后端学习'
+tags: ['分布式']
+---
+
+Spring Cloud 其实就是分布式微服务架构，和单体架构，集群架构相比的。
+
+单体架构就是所有业务服务都在一个服务器上，数据服务也在一个服务器上。这样显然不能支持很大的应用。
+
+后面就出现了集群，就是有好多个服务器，通过网关来转发同时负载均衡。这样可以让服务的并发量上去，但是耦合度还是很高，所有业务都是在一块的，如果要重新打包，那所有的服务都要重新弄。而且最重要的是，在一个系统里面可能是多种架构共同实现的，甚至是多语言，如果耦合很严重，灵活性和可扩展性都会比较差。
+
+这里要理解分布式和集群的区别，集群一般就是整体复制，把整个服务复制多份，相当于是拔河加人。而分布式相当于是把整个系统拆分为多个部分，协同组成一个完整项目，就像是交响乐团。c
+
+在整个分布式框架中，首先肯定是需要服务发现和注册的，因为各个服务散布在不同的服务器上，服务之间是需要相互调用的，而且这些服务总得统一管理，所以服务发现是必不可少的，比较常用的就是 Spring Cloud Alibaba - Nacos。
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-1.png)
+
+其次，我刚刚说了，服务之间需要互相调用，一般就通过 Spring Cloud - OpenFeign 来实现。
+
+这些微服务之间，互相调用，千丝万缕，如果有一个地方出问题了，很可能牵一发而动全身，所以我们需要高可用设计，就是通过 Spring Alibaba - Sentinel 来实现。
+
+网关，这个东西在集群模式就有，这个一般就是作为用户调用的入口，网关可以通过注册中心知道服务信息，然后相应做请求转发和负载均衡。比较常用的就是 Spring Cloud - Gateway。
+
+不只是服务拆分了，相应地，数据库也可以根据功能模块拆分，而事务通常是设计多个数据库的，而这多个数据库又通常是分布在多个服务器上的，如何实现跨数据库服务器的事务，这就是 Spring Cloud Alibaba - Seata 做的事。
+
+# Nacos
+
+引入 nacos starter，配置好 nacos 服务器地址之后，服务启动就会自动注册了。
+
+其实服务除了注册到 nacos，还可以通过依赖注入的方式直接获取 nacos 里面注册的服务信息。通过这些信息，可以自己实现服务间的调用(用 RestTemplate，相当于是编程式的 OpenFeign)。而且也可以通过注入和注解的方式实现负载均衡。
+
+Nacos 还有一个作用就是动态配置：
+
+```java
+@ConfigurationProperties 定义属性配置类
+
+在需要的地方依赖注入属性类就可以访问了
+```
+
+# OpenFeign
+
+声明式服务间调用。
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-2.png)
+
+OpenFeign 不只是可以调用自己写的微服务，还可以调用三方的服务。
+
+用法上就是
+
+```java
+@FeignClient(value="如果是本地微服务，就写注册中心中注册的 ")
+```
+
+超时设置：
+
+```yaml
+spring:
+  cloud:
+    openfeign:
+      client:
+        config:
+          default:
+            logger-level: full
+            connect-timeout: 1000
+            read-timeout: 2000
+          service-product:
+            logger-level: full
+            connect-timeout: 3000
+            read-timeout: 5000
+```
+
+拦截器：
+
+```java
+@Component
+public class xxx implements RequestInterceptor {
+
+    @Override
+    ...
+}
+```
+
+Fallback 兜底返回（需要配合 Sentinel）：
+
+差不多就是一些默认数据/缓存数据/假数据。
+
+使用方式：
+
+```java
+@FeignClient(..., fallback=xxx.class)
+
+这个xxx就是一个Feign客户端接口的实现类。
+在里面重写请求方法，请求失败之后Feign就会调用这个方法进行兜底。
+```
+
+# Sentinel
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-3.png)
+
+定义资源：
+
+- 主流框架自动适配，所有 Web 接口均为资源。
+- 编程式定义：SphU API
+- 声明式定义：@SentinelResource
+
+定义规则：
+
+- 流量熔断
+- 熔断降级
+- 系统保护
+- 来源访问控制
+- 热点参数
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-4.png)
+
+关注点：
+
+1.  资源定义
+2.  规则定义
+3.  异常处理
+
+## 限流和降级
+
+### 限流
+
+限流是一种针对服务提供者的策略，用于控制对特定服务接口或服务实例的访问量。其目的在于保护服务提供者免受过大请求流量的影响，确保服务稳定性。限流措施可以在服务提供者或服务消费者两端实现，通过设定流量阈值并采取排队、拒绝请求或返回错误信息等方式来控制流量，从而保护服务。
+
+### 降级
+
+降级是针对服务消费者的应对策略，在服务出现异常或限流时，通过对服务调用进行降级处理，确保消费者端能够在异常情况下正常工作。降级的目的在于转变为弱依赖状态，使系统能够在服务不可用时提供基本的功能或数据。这种策略可以在服务消费者端实施，通过返回默认值、提供备用数据或简化功能等方式来保证系统的可用性。
+
+总体而言，限流和降级作为微服务架构中的重要机制，尽管在实现上可能有多种方式，但它们都着眼于保护服务提供者和消费者，在面对异常情况时确保系统稳定运行。限流关注于保护服务提供者，控制请求流量；而降级则关注于服务消费者，确保在服务不可用或异常情况下提供基本的功能。
+
+使用 SentinelResource 标识资源。
+
+```java
+@GetMapping("/test")
+    @ResponseBody
+    @SentinelResource(value = "test",
+            blockHandlerClass = BlockHandlerForTestController.class,
+            blockHandler = "test", fallback=...)
+
+// blockHandler/Class 分别指定兜底方案类和对应的方法。
+// fallback除了可以处理限流异常，还可以处理业务异常。
+```
+
+blockHandler 的优先级高于 fallback，但是 fallback 可以处理业务异常，比如说 / 0。
+
+dashboard 需要在官网下载 jar 包并启动。
+
+之后配置：
+
+```yaml
+spring:
+  application:
+    name: test
+  cloud:
+    sentinel:
+      transport:
+        port: 8075 # Sentinel Server 端口
+        dashboard: 127.0.0.1:8072 # Sentinel 控制台端口
+
+
+# 这个port就是本地的HTTP服务器，因为本地服务需要和dashboard服务通信
+# dashboard就是控制台的地址
+```
+
+进入到 dashboard，可以看到有流控和熔断规则。
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-5.png)
+
+## 流控（流量控制，Flow Control）
+
+限制资源（如接口、方法）的访问频率，防止系统被突发流量打垮。
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-6.png)
+
+**阈值类型（Threshold Type）**：
+
+- **QPS（每秒请求数，\*\***推荐\***\*）**：如设置为 10，表示该资源每秒最多处理 10 个请求。
+- **线程数（Thread Count）**：如设置为 5，表示最多允许 5 个线程同时执行该资源。
+
+### 流控模式（Flow Rule 的 `controlBehavior`）
+
+| **模式**               | **说明**                                                                 |
+| ---------------------- | ------------------------------------------------------------------------ |
+| **直接（Direct）**     | 默认模式，直接对资源本身限流。                                           |
+| **关联（Associated）** | 当关联资源达到阈值时，限流当前资源。例如：支付接口异常时，限制下单接口。 |
+| **链路（Chain）**      | 只针对从指定入口（调用链路）进入的流量限流。                             |
+
+### 流控效果（Flow Rule 的 `strategy`）
+
+| **效果**                     | **说明**                                            |
+| ---------------------------- | --------------------------------------------------- |
+| **快速失败（Default）**      | 超过阈值直接抛出 `FlowException`&lt;br>，默认行为。 |
+| **Warm Up（预热）**          | 逐渐增加阈值，适用于冷启动场景（如缓存未加载）。    |
+| **排队等待（Rate Limiter）** | 请求排队，匀速通过，适用于削峰填谷。                |
+
+## 熔断（Circuit Breaking / Degradation）
+
+当某个服务或方法**持续异常或响应过慢**时，自动切断调用（打开熔断器），避免级联失败，并在一段时间后尝试恢复。
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-7.png)
+
+### 关键参数
+
+以 **慢调用比例** 为例：
+
+- **最大 RT（毫秒）**：比如 500ms，超过即算“慢调用”。
+- **比例阈值（%）**：比如 60%，表示 10 次请求中有 6 次慢于 500ms 就熔断。
+- **熔断时长（秒）**：熔断后多少秒内拒绝所有请求（如 10 秒）。
+- **最小请求数**：比如 5，表示至少有 5 个请求才开始统计（避免冷启动误判）。
+
+### ​熔断状态机
+
+1.  **Closed（关闭）**：正常调用。
+2.  **Open（打开）**：触发熔断，直接拒绝请求（走 `fallback` 或 `blockHandler`）。
+
+## 流控 vs 熔断 对比
+
+| **维度**     | **流量控制（流控）** | **熔断降级**                 |
+| ------------ | -------------------- | ---------------------------- |
+| **目的**     | 控制访问频率，防过载 | 防止故障扩散，快速失败       |
+| **触发条件** | QPS/线程数超阈值     | 慢调用、异常比例/数量超阈值  |
+| **保护对象** | 系统自身             | 调用方（避免等待或级联失败） |
+| **典型场景** | 秒杀、抢购限流       | 下游服务宕机、数据库慢查询   |
+
+## 热点
+
+对**带有特定参数值的请求**进行精细化限流。
+
+- 商品 ID 为 `1001` 的商品被疯狂抢购，但其他商品正常 → 只限流 `productId=1001`。
+- 某个用户（`userId=123`）频繁刷接口 → 只限制该用户，不影响其他人。
+
+### 核心机制
+
+- Sentinel 会统计方法参数中**最近最常访问的 Top K 参数值**（基于 LRU）。
+- 对这些“热点参数值”单独应用限流规则（QPS 阈值）。
+- **仅支持 QPS 模式**，不支持线程数。
+- **必须配合** `**@SentinelResource**` **使用**（不能直接用于 Spring MVC 的普通 Controller 方法）。
+
+## 授权
+
+黑白名单控制，根据调用来源决定是否放行请求。
+
+- 只允许来自“内部服务 A”或“IP 白名单”的请求调用敏感接口。
+- 禁止来自“恶意来源”（如爬虫、攻击者）的访问。
+
+### 核心机制
+
+- Sentinel 通过 `RequestOriginParser` 获取当前请求的 **origin（来源标识）**。
+- 授权规则定义哪些 origin **允许（白名单）** 或 **拒绝（黑名单）** 访问某个资源。
+
+## 四大规则对比总结
+
+| **规则类型** | **作用**          | **触发异常**         | **典型场景**        |
+| ------------ | ----------------- | -------------------- | ------------------- |
+| **流控规则** | 控制总 QPS/线程数 | `FlowException`      | 秒杀限流、防刷      |
+| **熔断规则** | 异常/慢调用时熔断 | `DegradeException`   | 下游故障保护        |
+| **热点规则** | 对热点参数值限流  | `ParamFlowException` | 热门商品、用户限流  |
+| **授权规则** | 黑白名单访问控制  | `AuthorityException` | IP 白名单、服务鉴权 |
+
+# Gateway
+
+![image.png](/images/posts/后端学习-分布式-spring_cloud_-_spring_cloud_alibaba/spring_cloud_-_spring_cloud_alibaba-8.png)
+
+作为客户端请求的统一入口，屏蔽众多微服务，由网关来进行鉴权、路由、流量控制、复杂均衡、系统监控流量控制（全局 QPS）等。
+
+## 路由
+
+```yaml
+spring:
+  cloud:
+    gateway:
+      routes:
+        - id: 路由id
+          uri: 路由目的地址
+          predicates: 断言 如 - Path = /api/order/** 就是路由匹配
+          order: 匹配优先级，值越小优先级越高
+          filter: 过滤器 类似于拦截器，可以对请求做前置处理，对返回做后置处理
+```
+
+​

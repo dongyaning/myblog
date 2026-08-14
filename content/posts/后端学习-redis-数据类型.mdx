@@ -1,0 +1,628 @@
+---
+title: '数据类型'
+date: '2024-01-18'
+updated: '2024-01-18'
+description: 'redis的所有数据都是键值对的形式，所有的键都是字符串，这里说的数据类型指的是值的类型。 5种基本数据类型： - string - list - set - hash - zset string 内部实现 底层主要的实现数据结构是 int'
+published: true
+category: '后端学习'
+tags: ['Redis']
+---
+
+Redis的所有数据都是键值对的形式，所有的键都是字符串，这里说的数据类型指的是值的类型。
+
+5种基本数据类型：
+
+- String
+- List
+- Set
+- Hash
+- Zset
+
+# String
+
+## 内部实现
+
+底层主要的实现数据结构是 int 和 SDS（简单动态字符串）。
+
+说一下**SDS，其和C语言的字符数组不一样：**
+
+- SDS不只能保存文本，还**可以保存二进制数据**，SDS的所有API都会以二进制形式处理，可以保存视频、音频等。（这个是因为C语言的字符串结束符用\\0表示，所以不能保存二进制数据，里面可能会有\\0，除非特殊处理，但是那样会影响性能，得不偿失）。
+- SDS不是用结束字符\\0标志结束的，而是**记录了长度len**，所以返回长度是O1的。
+- SDS相当于是ArrayList会**自动扩容**。
+
+- 此外，SDS还运用预分配空间和懒回收来优化，**减少内存分配次数**。
+
+字符串对象的内部编码主要有三种：int、raw 和 embstr。
+
+- 如果一个字符串保存整数值，并且这个整数值可以用long来表示，那么字符串就会将这个整数值保存到字符串对象结构的指针里面，并将编码类型设置为int。![image.png](/images/posts/后端学习-redis-数据类型/数据类型-1.png)
+- embstr 和 raw 的区别就像是 数组 和 ArrayList一样。
+
+- embstr分配一块连续内存，一次分配，存储短字符，不可修改（修改时会不可逆转换为raw）。
+- raw分配两块内存分别保存redisObject和内容，两次分配，存储长字符，可自动扩容。
+
+## 操作
+
+```shell
+# 设置 key-value 类型的值
+> SET name lin
+OK
+# 根据 key 获得对应的 value
+> GET name
+"lin"
+# 判断某个 key 是否存在
+> EXISTS name
+(integer) 1
+# 返回 key 所储存的字符串值的长度
+> STRLEN name
+(integer) 3
+# 删除某个 key 对应的值
+> DEL name
+(integer) 1
+
+# 设置 key-value 类型的值
+> SET name lin
+OK
+# 根据 key 获得对应的 value
+> GET name
+"lin"
+# 判断某个 key 是否存在
+> EXISTS name
+(integer) 1
+# 返回 key 所储存的字符串值的长度
+> STRLEN name
+(integer) 3
+# 删除某个 key 对应的值
+> DEL name
+(integer) 1
+
+# 不存在就插入（not exists）
+>SETNX key value
+(integer) 1
+```
+
+# List
+
+双向链表，按照插入顺序排序，可以从头部或尾部添加元素。每个链表最大长度2^32-1，40亿。
+
+## 内部实现
+
+在 3.2 版本之前，Redis List 底层采用**压缩链表（ZipList）和双向链表（LinkedList）**来实现。当元素数量小于 512 个并且元素大小小于 64 字节时采用 ZipList 编码，超过则自动采用 LinkedList 编码​。
+
+从 3.2 版本开始，Redis 将 List 的底层实现改为了**快速链表（QuickList）\*\***​\*\*。QuickList 是一个由压缩列表组成的双向链表，每个节点使用压缩列表来保存数据1。这种设计结合了压缩列表和双向链表的优点，既可以在元素较少时节省内存，又能在元素较多时保证操作性能。
+
+此外，从 Redis 7.0 开始，QuickList 中的压缩列表被 **ListPack** 取代，变为 ListPack 和 LinkedList 的结合版。ListPack 相比压缩列表，进一步优化了内存使用，消除了压缩列表中可能出现的连锁更新问题​。
+
+## 操作
+
+```shell
+# 将一个或多个值value插入到key列表的表头(最左边)，最后的值在最前面
+LPUSH key value [value ...]
+# 将一个或多个值value插入到key列表的表尾(最右边)
+RPUSH key value [value ...]
+# 移除并返回key列表的头元素
+LPOP key
+# 移除并返回key列表的尾元素
+RPOP key
+
+# 返回列表key中指定区间内的元素，区间以偏移量start和stop指定，从0开始
+LRANGE key start stop
+
+# 从key列表表头弹出一个元素，没有就阻塞timeout秒，如果timeout=0则一直阻塞
+BLPOP key [key ...] timeout
+# 从key列表表尾弹出一个元素，没有就阻塞timeout秒，如果timeout=0则一直阻塞
+BRPOP key [key ...] timeout
+```
+
+## 应用场景
+
+可以使用List实现消息队列，消息队列在存取消息时，必须要满足三个需求，分别是**消息保序、处理重复的消息和保证消息可靠性**。
+
+- 消息保序：使用 LPUSH + RPOP；
+- 阻塞读取：使用 BRPOP；
+- 重复消息处理：生产者自行实现全局唯一 ID；
+- 消息的可靠性：使用 BRPOPLPUSH；
+
+但是List不支持多个消费者消费同一个消息，因为一个消费者拉出去之后，这个消息就从队列中移除了。这个问题后面会通过Stream类型解决。
+
+# Hash
+
+Hash的value形如：vlaue=[&#123;field1, value1&#125;, &#123;fieldN, valueN&#125;]; 非常适合存储对象。
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-2.png)
+
+注意这个hash键值都是字符串，就算写 age 30，30也是字符串。要存对象的话就序列化成字符串。
+
+## 内部实现
+
+如果哈希元素个数小于512，所有的值小于64字节，使用压缩列表，否则使用哈希表作为底层数据结构。
+
+在Redis 7.0中，压缩列表结构被废弃，使用listpack数据结构实现。
+
+## String和Hash谁更适合存对象？
+
+- 在绝大多数情况下，**String** 更适合存储对象数据，尤其是当对象结构简单且整体读写是主要操作时。
+- 如果你需要频繁操作对象的部分字段或节省内存，**Hash** 可能是更好的选择。
+
+- 比如购物车的数据，可能需要频繁改动，如数量，款式什么的。
+
+## 操作
+
+```shell
+# 存储一个哈希表key的键值
+HSET key field value
+# 获取哈希表key对应的field键值
+HGET key field
+
+# 在一个哈希表key中存储多个键值对
+HMSET key field value [field value...]
+# 批量获取哈希表key中多个field键值
+HMGET key field [field ...]
+# 删除哈希表key中的field键值
+HDEL key field [field ...]
+
+# 返回哈希表key中field的数量
+HLEN key
+# 返回哈希表key中所有的键值
+HGETALL key
+
+# 为哈希表key中field键的值加上增量n
+HINCRBY key field n
+```
+
+## 应用场景
+
+- 缓存需要动态修改的对象（静态对象可以用JSON字符串）。
+- 当数据较少时，Hash会使用压缩列表，比String节省内存。
+
+## 补充拓展
+
+这里补充一下，所有的数据类型都是用哈希表存储的，这个全局哈希表是redis的核心数据结构。
+
+# Set
+
+无序、去重。
+
+一个集合最多存储2^32-1个元素。和数学上的集合类似，可以求并集、交集、差集等，所以 Set 类型除了支持集合内的增删改查，同时还支持多个集合间操作。
+
+## 内部实现
+
+元素个数少于512个（默认值，可配置），使用整数集合。否则使用哈希表。
+
+## 操作
+
+```shell
+# 往集合key中存入元素，元素存在则忽略，若key不存在则新建
+SADD key member [member ...]
+# 从集合key中删除元素
+SREM key member [member ...]
+# 获取集合key中所有元素
+SMEMBERS key
+# 获取集合key中的元素个数
+SCARD key
+
+# 判断member元素是否存在于集合key中
+SISMEMBER key member
+
+# 从集合key中随机选出count个元素，元素不从key中删除
+SRANDMEMBER key [count]
+# 从集合key中随机选出count个元素，元素从key中删除
+SPOP key [count]
+
+# 交集运算
+SINTER key [key ...]
+# 将交集结果存入新集合destination中
+SINTERSTORE destination key [key ...]
+
+# 并集运算
+SUNION key [key ...]
+# 将并集结果存入新集合destination中
+SUNIONSTORE destination key [key ...]
+
+# 差集运算
+SDIFF key [key ...]
+# 将差集结果存入新集合destination中
+SDIFFSTORE destination key [key ...]
+```
+
+## 应用场景
+
+Set 类型比较适合用来数据去重和保障数据的唯一性，还可以用来统计多个集合的交集、错集和并集等，当我们存储的数据是无序并且需要去重的情况下，比较适合使用集合类型进行存储。
+
+Set 的差集、并集和交集的计算复杂度较高，在数据量较大的情况下，如果直接执行这些计算，会导致 Redis 实例阻塞。在主从集群中，为了避免主库因为 Set 做聚合计算（交集、差集、并集）时导致主库被阻塞，我们可以选择一个从库完成聚合统计，或者把数据返回给客户端，由客户端来完成聚合统计。
+
+- 点赞：Set类型可以保证一个用户只能点一个赞。
+- 共同关注：通过交集。
+- 抽奖：利用去重保证一个用户只能中奖一次。
+
+# ZSet
+
+有序、去重。
+
+Zset 类型（有序集合类型）相比于 Set 类型多了一个排序属性 score（分值），对于有序集合 ZSet 来说，每个存储元素相当于有两个值组成的，一个是有序集合的元素值，一个是排序值。
+
+## 内部实现
+
+Zset 类型的底层数据结构是由压缩列表或跳表实现的：如果有序集合的元素个数小于 128 个，并且每个元素的值小于 64 字节时，Redis 会使用压缩列表作为 Zset 类型的底层数据结构。
+
+如果有序集合的元素不满足上面的条件，Redis 会使用跳表作为 Zset 类型的底层数据结构。
+
+在 Redis 7.0 中，压缩列表数据结构已经废弃了，交由 listpack（这是一个通用废弃） 数据结构来实现了。
+
+## 操作
+
+```shell
+# 往有序集合key中加入带分值元素
+ZADD key score member [[score member]...]
+# 往有序集合key中删除元素
+ZREM key member [member...]
+# 返回有序集合key中元素member的分值
+ZSCORE key member
+# 返回有序集合key中元素个数
+ZCARD key
+
+# 为有序集合key中元素member的分值加上increment
+ZINCRBY key increment member
+
+# 正序获取有序集合key从start下标到stop下标的元素
+ZRANGE key start stop [WITHSCORES]
+# 倒序获取有序集合key从start下标到stop下标的元素
+ZREVRANGE key start stop [WITHSCORES]
+
+# 返回有序集合中指定分数区间内的成员，分数由低到高排序。
+ZRANGEBYSCORE key min max [WITHSCORES] [LIMIT offset count]
+
+# 返回指定成员区间内的成员，按字典正序排列, 分数必须相同。
+ZRANGEBYLEX key min max [LIMIT offset count]
+# 返回指定成员区间内的成员，按字典倒序排列, 分数必须相同
+ZREVRANGEBYLEX key max min [LIMIT offset count]
+
+# 并集计算(相同元素分值相加)，numberkeys一共多少个key，WEIGHTS每个key对应的分值乘积
+ZUNIONSTORE destkey numberkeys key [key...]
+# 交集计算(相同元素分值相加)，numberkeys一共多少个key，WEIGHTS每个key对应的分值乘积
+ZINTERSTORE destkey numberkeys key [key...]
+// 没有差集运算！
+```
+
+## 应用场景
+
+在面对需要展示最新列表、排行榜等场景时，如果数据更新频繁或者需要分页显示，可以优先考虑使用 Sorted Set。
+
+- 排行榜：比较直观。
+- 电话、姓名排序（可以一样的分数直接字典序）。
+
+# BitMap
+
+位图，可以看做二进制数组，用来存储二值状态，支持位运算。
+
+这个要注意哈，如果使用了大的offset，是会占那么多内存的，所以这个使用的时候需要对key使用一些方法压缩一下，比如额外建立一个映射hash。
+
+## 操作
+
+```shell
+# 设置值，其中value只能是 0 和 1
+SETBIT key offset value
+
+# 获取值
+GETBIT key offset
+
+# 获取指定范围内值为 1 的个数
+# start 和 end 以字节为单位
+BITCOUNT key start end
+
+# BitMap间的运算
+# operations 位移操作符，枚举值
+  AND 与运算 &
+  OR 或运算 |
+  XOR 异或 ^
+  NOT 取反 ~
+# result 计算的结果，会存储在该key中
+# key1 … keyn 参与运算的key，可以有多个，空格分割，not运算只能一个key
+# 当 BITOP 处理不同长度的字符串时，较短的那个字符串所缺少的部分会被看作 0。返回值是保存到 destkey 的字符串的长度（以字节byte为单位），和输入 key 中最长的字符串长度相等。
+BITOP [operations] [result] [key1] [keyn…]
+
+# 返回指定key中第一次出现指定value(0/1)的位置
+BITPOS [key] [value]
+```
+
+## 应用场景
+
+二值状态统计的场景：
+
+- 签到统计
+- 判断用户登录状态
+- 连续签到用户总数（与运算）
+
+# HypeLogLog
+
+用于统计基数，基于概率统计一个集合中不重复的元素个数，不是完全准确的。
+
+优点是可以以极小的内存统计极大的数据量。
+
+## 操作
+
+```shell
+# 添加指定元素到 HyperLogLog 中
+PFADD key element [element ...]
+
+# 返回给定 HyperLogLog 的基数估算值。
+PFCOUNT key [key ...]
+
+# 将多个 HyperLogLog 合并为一个 HyperLogLog
+PFMERGE destkey sourcekey [sourcekey ...]
+```
+
+## 应用场景
+
+百万级网页的UV计数，独立访客量，多次访问只记录一次。
+
+# GEO
+
+存储和操作地理位置信息。
+
+## 内部实现
+
+GEO 本身并没有设计新的底层数据结构，而是直接使用了 Sorted Set 集合类型。GEO 类型使用 GeoHash 编码方法实现了经纬度到 Sorted Set 中元素权重分数的转换，这其中的两个关键机制就是「对二维地图做区间划分」和「对区间进行编码」。一组经纬度落在某个区间后，就用区间的编码值来表示，并把编码值作为 Sorted Set 元素的权重分数。
+
+## 操作
+
+```shell
+# 存储指定的地理空间位置，可以将一个或多个经度(longitude)、纬度(latitude)、位置名称(member)添加到指定的 key 中。
+GEOADD key longitude latitude member [longitude latitude member ...]
+
+# 从给定的 key 里返回所有指定名称(member)的位置（经度和纬度），不存在的返回 nil。
+GEOPOS key member [member ...]
+
+# 返回两个给定位置之间的距离。
+GEODIST key member1 member2 [m|km|ft|mi]
+
+# 根据用户给定的经纬度坐标来获取指定范围内的地理位置集合。
+GEORADIUS key longitude latitude radius m|km|ft|mi [WITHCOORD] [WITHDIST] [WITHHASH] [COUNT count] [ASC|DESC] [STORE key] [STOREDIST key]
+```
+
+## 应用场景
+
+- 滴滴打车，返回附近的车辆
+
+# Stream
+
+Redis专门为消息队列设计的数据类型。
+
+## 操作
+
+```shell
+XADD：插入消息，保证有序，可以自动生成全局唯一 ID；
+XLEN ：查询消息长度；
+XREAD：用于读取消息，可以按 ID 读取数据；
+XDEL ： 根据消息 ID 删除消息；
+DEL ：删除整个 Stream；
+XRANGE ：读取区间消息• XREADGROUP：按消费组形式读取消息
+XPENDING 和 XACK：
+  XPENDING 命令可以用来查询每个消费组内所有消费者「已读取、但尚未确认」的消息；
+  XACK 命令用于向消息队列确认消息处理已完成；#
+```
+
+## 应用场景
+
+### 消息队列（Stream主要设计目的）
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-3.png)
+
+- 消息保序：XADD/XREAD
+- 阻塞读取：XREAD block
+- 重复消息处理：Stream 在使用 XADD 命令，会自动生成全局唯一 ID；
+- 消息可靠性：内部使用 PENDING List 自动保存消息，使用 XPENDING 命令查看消费组已经读取但是未被确认的消息，消费者使用 XACK 确认消息；
+- 支持消费组形式消费数据。
+
+把 Redis 当作队列来使用时，会面临的 2 个问题：
+
+- Redis 本身可能会丢数据；
+- 面对消息挤压，内存资源会紧张；
+
+所以，能不能将 Redis 作为消息队列来使用，关键看你的业务场景：
+
+- 如果你的业务场景足够简单，对于数据丢失不敏感，而且消息积压概率比较小的情况下，把 Redis 当作队列是完全可以的。
+- 如果你的业务有海量消息，消息积压的概率比较大，并且不能接受数据丢失，那么还是用专业的消息队列中间件吧。
+
+# 数据结构
+
+redis之所以快，一方面是因为**在内存中操作**，另一方面即是得益于**数据结构的使用和设计。（再加上 IO 模型）。**
+
+我之前说过，Redis整体上是一个哈希表，虽然也有哈希表数据类型，但是那个哈希表是“值的哈希表”。整个的键值对框架都是用一个哈希表存储的，整体结构如图：
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-4.png)
+
+- redisDb 结构，表示 Redis 数据库的结构，结构体里存放了指向了 dict 结构的指针；
+- dict 结构，结构体里存放了 2 个哈希表，正常情况下都是用「哈希表1」，「哈希表2」只有在 rehash 的时候才用，具体什么是 rehash，我在本文的哈希表数据结构会讲；
+- ditctht 结构，表示哈希表的结构，结构里存放了哈希表数组，数组中的每个元素都是指向一个哈希表节点结构（dictEntry）的指针；
+- dictEntry 结构，表示哈希表节点的结构，结构里存放了 \*\*void \* key 和 void \* value 指针， key 指向的是 String 对象，而 value 则可以指向 String 对象，也可以指向集合类型的对象，比如 List 对象、Hash 对象、Set 对象和 Zset 对象。
+
+void\* key 和 void\* value 都是指向的Redis对象，由redisObject（相当于Java的Object）表示：
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-5.png)
+
+- type，标识该对象是什么类型的对象（String 对象、 List 对象、Hash 对象、Set 对象和 Zset 对象）；•
+- encoding，标识该对象使用了哪种底层的数据结构；
+- ptr，指向底层数据结构的指针。
+
+下面开始讲具体的底层数据结构。
+
+## SDS（Simple Dynamic String，简单动态字符串）
+
+redis是用c语言实现的，但是并没有直接使用c的字符数组char\*，而是自己封装了sds。
+
+c语言的字符数组存在如下问题：
+
+- 获取字符串长度的时间复杂度为 O（N）；
+
+- 因为字符数组不会存额外的信息，就一个开头指针，再去找结束字符。求长度必须遍历。
+
+- 字符串的结尾是以 “\\0” 字符标识，字符串里面不能包含有 “\\0” 字符，因此不能保存二进制数据；
+- 字符串操作函数不高效且不安全，比如有缓冲区溢出的风险，有可能会造成程序运行终止；
+
+- 比如strcat，c不会做记录缓冲区，如果程序员没写好很容易溢出导致程序崩溃。
+
+再来看一下SDS的结构：
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-6.png)
+
+- len就是长度；
+- alloc会记录分配的内存数量，如果不够就会自动扩容，避免溢出；
+- flags记录类型；
+
+- 五种类型：sdshdr5、sdshdr8、sdshdr16、sdshdr32 和 sdshdr64
+- 区别就是len和alloc的数据类型不同
+- 为了节约内存空间
+
+- buf就是保存的数据。
+
+## 链表
+
+redis定义了双端链表结构体listNode，又封装了一层list，保存了头尾指针、长度等信息。结点值value为void\*，可以保存各种类型的数据。
+
+缺点：
+
+- 内存不连续，CPU缓存性能受限。
+- 保存一个value，需要定义一个结构体，内存开销较数组大。
+
+所以，在数据量较小的时候，选择压缩列表（后面改为quicklist、listpack）。
+
+## 压缩列表（ziplist）
+
+为了优化小数据场景的内存使用，像是链表这些结构每个结点都有指针、内存对齐等。
+
+**ziplist 是一种连续内存布局、无指针、紧凑存储的结构**。
+
+```latex
+ziplist结构：
+[ zlbytes ][ zltail ][ zllen ][ entry1 ][ entry2 ] ... [ entryN ][ zlend ]
+
+entry内部结构：
+[ prevlen ][ encoding ][ data ]
+encoding 支持1/2/3/4/8字节或特殊编码直接存入encoding。
+prevlen可能会导致连锁更新问题：
+如果某个 entry 长度从 253 → 254，prevlen 从 1B → 5B，导致当前 entry 变大，
+可能又触发下一个 entry 的 prevlen 扩容……最坏 O(n²)。
+```
+
+这个后面的版本已经被废弃了，我简单说一下。就是根据数据值动态分配内存空间大小。但是可能会出现性能问题，引发连锁更新。后面的quicklist, listpack 就是为了解决设计上的不足。
+
+### 连锁更新问题
+
+压缩列表里面存有prevlen字段，指示前一个元素的长度，用于反向遍历。如果prevlen &lt;= 254，用一个字节存储，> 254用5个字节存储。如果添加删除导致长度超过阈值就需要扩容，而扩容又会影响后一个元素的prevlen，从而可能引发连锁更新。
+
+## 哈希表
+
+这个跟普通的哈希没啥区别，冲突处理用的是链式。
+
+这里主要说一下rehash。
+
+### rehash
+
+实际上相当于是扩容，至于hash的规则变没变就看情况来了。
+
+**负载因子：**哈希表结点数量 / 哈希表大小
+
+**触发条件：**
+
+- 负载因子大于1，且没有在进行 RDB快照和AOF重写，就会rehash。
+- 负载因子大于5，此时hash冲突已很严重，无条件强制rehash。
+
+rehash一般是扩容一倍（就是原来的两倍）：
+
+- hash2分配两倍当前内存
+- 将hash1（当前在用的也是主要用的hash表）迁移到hash2
+- 将hash2作为hash1
+
+考虑到，数据量很大时，第二步的迁移操作会很耗时，导致redis堵塞（单线程），采用渐进式迁移方式，慢慢地顺序迁移过去。迁移过程中：
+
+- 新增数据：一律新增至hash2
+- 查找数据，先在hash1找，再去hash2找
+
+## 整数集合
+
+整数集合是 Set 对象的底层实现之一。当一个 Set 对象只包含整数值元素，并且元素数量不大时，就会使用整数集这个数据结构作为底层实现。
+
+### 结构
+
+```c
+typedef struct intset {
+    //编码方式
+    uint32_t encoding;
+    //集合包含的元素数量
+    uint32_t length;
+    //保存元素的数组
+    int8_t contents[];
+} intset;
+```
+
+其中 contents的类型虽然是int8_t，但存储的数据未必是 int8_t的，是根据encoding来的。
+
+整数集合涉及升级操作，如果新添加的元素比之前任何一个元素类型都大，那么就会把所有元素的类型升级为最大的类型。
+
+## 跳表
+
+```c
+typedef struct zskiplistNode {
+    // 数据相关
+    sds ele;               // 元素值
+    double score;          // 排序分数
+    // 指针相关
+    struct zskiplistNode *backward;  // 后退指针（仅底层有效）
+    struct zskiplistLevel {
+        struct zskiplistNode *forward;  // 各层级的next指针
+        unsigned int span;              // 与下一个节点的距离（用于排名计算）
+    } level[];  // 层级指针数组（长度=节点的随机层级）
+} zskiplistNode;
+
+// 其中传统跳表没有backword指针，redis做了优化，在最下层变成了双向链表。
+```
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-7.png)
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-8.png)
+
+每次插入元素时：
+
+- 计算随机层级，层级越大概率越小。
+
+- 如某元素的层级为2，则表示该元素出现在最下面的两层中，为3则出现在最下面的三层中。
+
+- 从最高层开始遍历寻找插入位置，这样是为了快速筛选，因为越高层越稀疏。
+- 如果是目标层级就插入即可。
+- 直至最低层级。
+
+查询元素显然从最高层找：
+
+- 当前元素比目标元素小就找下一个结点
+- 下一个为空了或者比目标结点大了就可以找就可以找当前遍历到的结点的低一层了。
+
+跳表的一个关键特点是：**逻辑上分层，物理上共享**。
+
+具体来说，跳表的每一个元素结点都只存在一份，逻辑上存在于多个层中，实际上在内存中是一样的。
+
+### 选择跳表而不是平衡树的原因
+
+- 从**算法实现难度**上来比较，跳表比平衡树要简单得多。平衡树的插入和删除操作可能引发子树的调整，逻辑复杂，而跳表的插入和删除只需要修改相邻节点的指针，操作简单又快速。
+
+- 我觉得这算个核心因素，**性能差不多，且实现简单的多**。实现简单就更不容易出错，调试也简单，更稳定。
+
+- 在做**范围查找**的时候，跳表比平衡树操作要简单。在平衡树上，我们找到指定范围的小值之后，还需要以中序遍历的顺序继续寻找其它不超过大值的节点。如果不对平衡树进行一定的改造，这里的中序遍历并不容易实现。而在跳表上进行范围查找就非常简单，只需要在找到小值之后，对第 1 层链表进行若干步的遍历就可以实现。
+- 跳表的**内存局部性**更好，跳表的底层数据结构是双向链表，相对平衡树的树形结构，内存分布更连续，缓存更容易命中。
+
+## quicklist
+
+实际就是 双向链表 + 压缩列表，每个双向链表的元素都是一个压缩列表。
+
+通过控制压缩列表的大小来规避连锁更新问题。
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-9.png)
+
+## listpack
+
+把prevlen删了。
+
+![image.png](/images/posts/后端学习-redis-数据类型/数据类型-10.png)
+
+注意，listpack依然具有逆序遍历能力。
+
+因为知道总长，且结尾一定是一个字节，就知道了最后一个元素的结尾位置，向前遍历字节。因为len是变长字节编码（&lt;=254一个字节， >254五个字节，第一个固定，标记长编码，后面四个是值，且为大端）。如果从最后一个字符的结尾位置向前遍历不是固定值，那么就是长度，通过len就可以倒推起始位置。反复如此即可。

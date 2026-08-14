@@ -1,0 +1,416 @@
+---
+title: '新特性'
+date: '2023-05-18'
+updated: '2023-05-18'
+description: 'java 8 函数式接口 functional interface 也称为sam接口：single abstract method interfaces，有且只有一个抽象方法，但可以有多个非抽象方法的接口。这样就可以相当于只定义一个函数，就'
+published: true
+category: '后端学习'
+tags: ['Java']
+---
+
+# Java 8
+
+## 函数式接口 functional interface
+
+也称为SAM接口：Single Abstract Method interfaces，有且只有一个抽象方法，但可以有多个非抽象方法的接口。这样就可以相当于只定义一个函数，就可以实现这个接口了。
+
+只要符合函数式接口的定义就是函数式接口，与是否有`@FunctionalInterface`注解无关，注解只是在编译时起到强制规范定义的作用。其在 Lambda 表达式中有广泛的应用。
+
+### Lambda表达式
+
+java8最重要的功能。
+
+#### 语法格式
+
+```java
+(parameters) -> expression 或
+(parameters) ->{ statements; }
+```
+
+#### 实战
+
+##### 替换匿名内部类
+
+过去只能用内部类，现在用lambda
+
+```java
+new Thread(new Runnable() {
+            @Override
+            public void run() {
+                System.out.println("The runable now is using!");
+            }
+}).start();
+//用lambda
+new Thread(() -> System.out.println("It's a lambda function!")).start();
+```
+
+##### 集合迭代
+
+```java
+strings.forEach((s) -> System.out.println(s));
+```
+
+##### 方法的引用
+
+方法引用是Lambda表达式的简写形式，是配套的语法糖。让代码更简洁，可读性更强。
+
+**适用于lambda里面就调用个别的函数，没有其他逻辑的情况。**
+
+捋一下这个关系，函数式接口就是只有一个抽象方法的接口，就是一个特殊的接口，但还是接口。而Lambda相当于是对匿名内部类的语法糖，所以**lambda和方法引用相当于是一个实现了函数式接口的类的实例**（在功能和行为上，但没有对应的.class）。
+
+例子：
+
+```java
+List<String> names = Arrays.asList("Alice", "Bob", "Charlie");
+
+// 使用 Lambda 表达式打印每个名字
+names.forEach(name -> System.out.println(name));
+
+// Lambda的参数 name 直接传给了 System.out.println, 没有额外逻辑
+
+// 就可以简化为：
+names.forEach(System.out::println);
+```
+
+类型：
+
+```java
+// 1.静态方法引用
+// Lambda 写法
+Function<Integer, String> converter = x -> String.valueOf(x);
+
+// 方法引用
+Function<Integer, String> converter = String::valueOf;
+
+// 这种就是相当于把 lambda 的参数 作为另一个方法的参数
+
+// 2.实例方法引用(针对任意对象)
+// Lambda
+Function<String, Integer> parser = str -> str.length();
+
+// 方法引用
+Function<String, Integer> parser = String::length;
+
+// 第一个参数是 调用者，后续参数是引用的方法的 参数
+
+// 3.实例方法引用（特定对象）
+PrintStream out = System.out;
+
+// Lambda
+Consumer<String> printer = s -> out.println(s);
+
+// 方法引用
+Consumer<String> printer = out::println;
+
+// 全部都是引用的方法的 参数
+
+// 4.构造方法引用
+
+```
+
+##### 访问变量
+
+就是闭包的那个结构，闭包访问的元素默认是final的，不需要真的是final，定义了就没修改过，可以认为是final，也行。
+
+## Stream
+
+stream可以检索(Retrieve)和逻辑处理集合数据、包括筛选、排序、统计、计数等。可以想象成是 Sql 语句。
+
+它的源数据可以是 `Collection`、`Array` 等。由于它的方法参数都是函数式接口类型，所以一般和 Lambda 配合使用。
+
+流有并行流和串行流。
+
+主要是熟悉一下里面的方法和使用。
+
+注意：
+
+1.  一个 Stream 只能操作一次，操作完就关闭了，继续使用这个 stream 会报错。
+2.  **Stream 的\*\***中间操作（Intermediate Operations）不会立即执行\***\*，只有当遇到终端操作（Terminal Operation）时，整个流水线才会从头开始执行。**
+3.  **操作不会改变原始数据源**
+4.  通过 `.parallelStream()` 自动多线程处理（需注意线程安全）
+
+## Optional
+
+在[阿里巴巴开发手册关于 Optional 的介绍](https://share.weiyun.com/ThuqEbD5)中这样写到：
+
+防止 NPE，是程序员的基本修养，注意 NPE 产生的场景：
+
+1） 返回类型为基本数据类型，return 包装数据类型的对象时，自动拆箱有可能产生 NPE。
+
+反例：public int f() &#123; return Integer 对象&#125;， 如果为 null，自动解箱抛 NPE。
+
+2） 数据库的查询结果可能为 null。
+
+3） 集合里的元素即使 isNotEmpty，取出的数据元素也可能为 null。
+
+4） 远程调用返回对象时，一律要求进行空指针判断，防止 NPE。
+
+5） 对于 Session 中获取的数据，建议进行 NPE 检查，避免空指针。
+
+6） 级联调用 obj.getA().getB().getC()；一连串调用，易产生 NPE。
+
+正例：使用 JDK8 的 Optional 类来防止 NPE 问题。
+
+Optional就是为NPE而生的，
+
+### 创建Optional
+
+```java
+/**
+* Common instance for {@code empty()}. 全局EMPTY对象
+*/
+private static final Optional<?> EMPTY = new Optional<>();
+
+/**
+* Optional维护的值
+*/
+private final T value;
+
+/**
+* 如果value是null就返回EMPTY，否则就返回of(T)
+*/
+public static <T> Optional<T> ofNullable(T value) {
+   return value == null ? empty() : of(value);
+}
+/**
+* 返回 EMPTY 对象
+*/
+public static<T> Optional<T> empty() {
+   Optional<T> t = (Optional<T>) EMPTY;
+   return t;
+}
+/**
+* 返回Optional对象
+*/
+public static <T> Optional<T> of(T value) {
+    return new Optional<>(value);
+}
+/**
+* 私有构造方法，给value赋值
+*/
+private Optional(T value) {
+  this.value = Objects.requireNonNull(value);
+}
+/**
+* 所以如果of(T value) 的value是null，会抛出NullPointerException异常，这样貌似就没处理NPE问题
+*/
+public static <T> T requireNonNull(T obj) {
+  if (obj == null)
+         throw new NullPointerException();
+  return obj;
+}
+```
+
+`ofNullable` 方法和`of`方法唯一区别就是当 value 为 null 时，`ofNullable` 返回的是`EMPTY`，of 会抛出 `NullPointerException` 异常。如果需要把 `NullPointerException` 暴漏出来就用 `of`，否则就用 `ofNullable`。
+
+### 判断vlaue是否为null
+
+```java
+/**
+* value是否为null
+*/
+public boolean isPresent() {
+    return value != null;
+}
+/**
+* 如果value不为null执行consumer.accept
+*/
+public void ifPresent(Consumer<? super T> consumer) {
+   if (value != null)
+    consumer.accept(value);
+}
+```
+
+### 示例
+
+```java
+// 传统方法
+Zoo zoo = getZoo();
+if(zoo != null){
+   Dog dog = zoo.getDog();
+   if(dog != null){
+      int age = dog.getAge();
+      System.out.println(age);
+   }
+}
+
+// Optional
+Optional.ofNullable(zoo).map(o -> o.getDog()).map(d -> d.getAge())
+.ifPresent(age ->
+    System.out.println(age)
+);
+```
+
+### Optional 的 map 和 flatMap
+
+Stream里面的flatMap就是展开嵌套结构。
+
+Optional里面的flatMap是为了避免Optional嵌套，自动解包一层Optional。
+
+## Date-Time API
+
+这是对`java.util.Date`强有力的补充，解决了 Date 类的大部分痛点：
+
+1.  非线程安全
+2.  时区处理麻烦
+3.  各种格式化、和时间计算繁琐
+4.  设计有缺陷，Date 类同时包含日期和时间；还有一个 java.sql.Date，容易混淆。
+
+```java
+LocalDateTime.class //日期+时间 format: yyyy-MM-ddTHH:mm:ss.SSS
+LocalDate.class //日期 format: yyyy-MM-dd
+LocalTime.class //时间 format: HH:mm:ss
+```
+
+### 格式化
+
+```java
+public void newFormat(){
+    //format yyyy-MM-dd
+    LocalDate date = LocalDate.now();
+    System.out.println(String.format("date format : %s", date));
+
+    //format HH:mm:ss
+    LocalTime time = LocalTime.now().withNano(0);
+    System.out.println(String.format("time format : %s", time));
+
+    //format yyyy-MM-dd HH:mm:ss
+    LocalDateTime dateTime = LocalDateTime.now();
+    DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    String dateTimeStr = dateTime.format(dateTimeFormatter);
+    System.out.println(String.format("dateTime format : %s", dateTimeStr));
+}
+```
+
+now的打印格式就符合日常使用习惯了，要转化的话使用LocalDate.format(DataTimeFormatter)。
+
+### 字符串转日期
+
+**Java 8 之前** 转换都需要借助 `SimpleDateFormat` 类，而**Java 8 之后**只需要 `LocalDate`、`LocalTime`、`LocalDateTime`的 `of` **或** `parse` 方法。
+
+```java
+LocalDate date = LocalDate.of(2021, 1, 26);
+LocalDate.parse("2021-01-26");
+
+LocalDateTime dateTime = LocalDateTime.of(2021, 1, 26, 12, 12, 22);
+LocalDateTime.parse("2021-01-26T12:12:22");
+
+LocalTime time = LocalTime.of(12, 12, 22);
+LocalTime.parse("12:12:22");
+```
+
+### 日期计算
+
+```java
+public void pushWeek(){
+     //一周后的日期
+     LocalDate localDate = LocalDate.now();
+     //方法1
+     LocalDate after = localDate.plus(1, ChronoUnit.WEEKS);
+     //方法2
+     LocalDate after2 = localDate.plusWeeks(1);
+     System.out.println("一周后日期：" + after);
+
+     //算两个日期间隔多少天，计算间隔多少年，多少月
+     LocalDate date1 = LocalDate.parse("2021-02-26");
+     LocalDate date2 = LocalDate.parse("2021-12-23");
+     Period period = Period.between(date1, date2);
+     System.out.println("date1 到 date2 相隔："
+                + period.getYears() + "年"
+                + period.getMonths() + "月"
+                + period.getDays() + "天");
+   //打印结果是 “date1 到 date2 相隔：0年9月27天”
+     //这里period.getDays()得到的天是抛去年月以外的天数，并不是总天数
+     //如果要获取纯粹的总天数应该用下面的方法
+     long day = date2.toEpochDay() - date1.toEpochDay();
+     System.out.println(date1 + "和" + date2 + "相差" + day + "天");
+     //打印结果：2021-02-26和2021-12-23相差300天
+}
+```
+
+这些单位都在 _java.time.temporal.ChronoUnit_ 枚举中定义。
+
+### 获取指定某天
+
+```java
+public void getDayNew() {
+    LocalDate today = LocalDate.now();
+    //获取当前月第一天：
+    LocalDate firstDayOfThisMonth = today.with(TemporalAdjusters.firstDayOfMonth());
+    // 取本月最后一天
+    LocalDate lastDayOfThisMonth = today.with(TemporalAdjusters.lastDayOfMonth());
+    //取下一天：
+    LocalDate nextDay = lastDayOfThisMonth.plusDays(1);
+    //当年最后一天
+    LocalDate lastday = today.with(TemporalAdjusters.lastDayOfYear());
+    //2021年最后一个周日，如果用Calendar是不得烦死。
+    LocalDate lastMondayOf2021 = LocalDate.parse("2021-12-31").with(TemporalAdjusters.lastInMonth(DayOfWeek.SUNDAY));
+}
+```
+
+#### JDBC 和 java8
+
+1.  `Date` \---> `LocalDate`
+2.  `Time` \---> `LocalTime`
+3.  `Timestamp` ---> `LocalDateTime`
+
+### 时区
+
+Date默认不支持时区，需要额外借助 TimeZone。
+
+在新特性中引入了 `java.time.ZonedDateTime` 来表示带时区的时间。它可以看成是 `LocalDateTime + ZoneId`。
+
+```plain
+//当前时区时间
+ZonedDateTime zonedDateTime = ZonedDateTime.now();
+System.out.println("当前时区时间: " + zonedDateTime);
+
+//东京时间
+ZoneId zoneId = ZoneId.of(ZoneId.SHORT_IDS.get("JST"));
+ZonedDateTime tokyoTime = zonedDateTime.withZoneSameInstant(zoneId);
+System.out.println("东京时间: " + tokyoTime);
+
+// ZonedDateTime 转 LocalDateTime
+LocalDateTime localDateTime = tokyoTime.toLocalDateTime();
+System.out.println("东京时间转当地时间: " + localDateTime);
+
+//LocalDateTime 转 ZonedDateTime
+ZonedDateTime localZoned = localDateTime.atZone(ZoneId.systemDefault());
+System.out.println("本地时区时间: " + localZoned);
+
+//打印结果
+当前时区时间: 2021-01-27T14:43:58.735+08:00[Asia/Shanghai]
+东京时间: 2021-01-27T15:43:58.735+09:00[Asia/Tokyo]
+东京时间转当地时间: 2021-01-27T15:43:58.735
+当地时区时间: 2021-01-27T15:53:35.618+08:00[Asia/Shanghai]
+```
+
+# Java 21
+
+## 字符串模版
+
+- STR：自动执行字符串插值，即将模板中的每个嵌入式表达式替换为其值（转换为字符串）。
+- FMT：和 STR 类似，但是它还可以接受格式说明符，这些格式说明符出现在嵌入式表达式的左边，用来控制输出的样式。
+- RAW：不会像 STR 和 FMT 模板处理器那样自动处理字符串模板，而是返回一个 `StringTemplate` 对象，这个对象包含了模板中的文本和表达式的信息。
+
+```java
+String name = "Lokesh";
+
+//STR
+String message = STR."Greetings \{name}.";
+
+//FMT
+String message = FMT."Greetings %-12s\{name}.";
+
+//RAW
+StringTemplate st = RAW."Greetings \{name}.";
+String message = STR.process(st);
+```
+
+## 虚拟线程
+
+就是JDK提供的线程，和操作系统线程不是一对一的。
+
+![image.png](/images/posts/后端学习-java-新特性/新特性-1.png)
+
+别的先不看了。

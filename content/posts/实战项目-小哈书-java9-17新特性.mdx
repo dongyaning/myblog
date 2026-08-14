@@ -1,0 +1,173 @@
+---
+title: 'Java9-17新特性'
+date: '2023-01-21'
+updated: '2023-01-21'
+description: 'java 9 在 java 8 中，接口引入了 default 和 static 方法。java9中又引入了private方法。 ​ java11 var局部变量类型推断：ava 11 中引入了 var 关键字，它可以简化局部变量的定义。 '
+published: true
+category: '后端学习'
+tags: ['实战项目', '小哈书']
+---
+
+java 9
+
+在 Java 8 中，接口引入了 `**default**` 和 `**static**` 方法。Java9中又引入了private方法。
+
+​
+
+Java11
+
+var局部变量类型推断：ava 11 中引入了 `**var**` 关键字，它可以**简化局部变量的定义**。
+
+- **必须定义在\*\***局部\***\*，也就是方法内；**
+- **必须是\*\***能够被推导出来\***\*的类型；**
+
+- 值为 `**null**` ，或者未定义具体的值时，编译器无法推导对应的类型。
+
+​
+
+Java 14
+
+**增强switch**
+
+```java
+switch (num) {
+    case 1 -> System.out.println("犬小哈说：one");
+    case 2 -> System.out.println("犬小哈说：two");
+    case 3, 4 -> System.out.println("犬小哈说：three or four");
+    default -> System.out.println("犬小哈说: default");
+}
+```
+
+不需要break
+
+同时也可以将switch当做表达式使用
+
+```java
+int num = switch (letter) {
+    case "A" -> 1;
+    case "B" -> 2;
+    case "C" -> 3;
+    default -> 0;
+};
+```
+
+箭头语法后面也支持代码块
+
+```java
+int num = switch (letter) {
+    case "A" -> 1;
+    case "B" -> 2;
+    case "C" -> {
+        System.out.println("当前字母为：C");
+        yield 3;
+    }
+    default -> 0;
+};
+```
+
+**更具体的空指针异常提示**
+
+在 Java 14 之前，一旦发生了空指针，异常信息中是无法明确的提示出，是哪个变量报了空指针，**只能靠上下文猜**。而在 Java 14 之后，异常信息中能够明确提示你，是哪个变量报了空指针。
+
+​
+
+Java 15
+
+**文本块**
+
+字符串拼接在 Java 15 之后，支持通过 `**"""**` 三个双引号，**文本块语法**来书写，代码如下：
+
+```java
+public static void main(String[] args) {
+    // 拼接 HTML
+    String html = """
+            <html>
+                <body>
+                    <h2>你的评论:</h2>
+                    <p>%s</p>
+                    <h2>审核未通过原因:</h2>
+                    <p>%s</p>
+                    <p><a href='%s' target='_blank'>查看详情</a></p>
+                </body>
+            </html>
+            """;
+
+    // 输出的字符串
+    String output = String.format(html, "xxx", "包含敏感词", "https://www.quanxiaoha.com");
+
+    // 打印输出到控制台
+    System.out.println(output);
+}
+}
+
+```
+
+文本块支持转义符
+
+通过添加 `**\**` 合并行转义符，可以让指定的两行合并到同一行中
+
+通过添加 `**\s**` 转义符，可以指定某个位置空一格
+
+​
+
+Java 16
+
+在 Java 16 之后，无需再显示的进行类型强转了。
+
+```java
+public class Main {
+
+    public static void test(Object object) {
+        if (object instanceof Integer i) {
+            System.out.println("object is Integer: " + i.intValue());
+        } else if (object instanceof String s) {
+            // 替换字符串
+            System.out.println("object is String: " + s.replace("教程", "专栏"));
+        }
+    }
+
+    public static void main(String[] args) {
+        test(1);
+        test("犬小哈教程");
+    }
+
+}
+```
+
+Record类型：
+
+在 Java 16 中，引入了记录 （Record）类型，它被用于定义**数据载体**对象。大白话解释就是，当想要创建的对象，仅仅需要初始化的时候赋予一些值，后续永远不需要再修改时，就可以考虑使用到 Record 类型了。
+
+```java
+// 定义两个字段， name : 姓名；age : 年龄
+public record PersonRecord(String name, int age) {
+}
+```
+
+当使用 `**record**` 关键字时，编译器会自动生成：
+
+- `**final**` 类型不可变的字段；
+- 全参构造器；
+- 能访问到每个字段，即 `**get**` 方法；
+- `**equals()**` 方法；
+- `**hashCode()**` 方法；
+- `**toString()**` 方法；
+
+可作为Map的key被使用。
+
+​
+
+Java 17
+
+```java
+public sealed class Base permits B1, B2 {
+}
+```
+
+定义一个 `**class**` 类，额外添加 `**sealed**` 关键字，则表示该类为密封类。并通过 `**permits**` 关键字来指定，必须由 `**B1**`、`**B2**` 类才能够继承自己。如果你尝试在其他类中继承 `**Base**` , 对不起，报错伺候！
+
+`**sealed**` 类的子类只能通过下面的某个修饰符来定义，这是强制规定！
+
+- `**final**` : 不允许再定义子类；
+- `**sealed**` : 允许有一组密封子类；
+- `**non-sealed**` ： 新关键字，允许未知的子类继承它，即不用通过 `**permits**` 指定谁来继承；
